@@ -1,2 +1,5 @@
 fastapi==0.74.1
 uvicorn==0.17.5
+
+tortoise-orm[aiomysql]==0.18.1
+aiomysql==0.0.22
