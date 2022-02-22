@@ -27,7 +27,7 @@ async def server_connect(ws: WebSocket):
 register_tortoise(
     app,
     db_url=db_url,
-    modules={'models': ['db']},
+    modules={'models': ['coordinator.db']},
     generate_schemas=True,
     add_exception_handlers=True
 )
