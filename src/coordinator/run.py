@@ -41,10 +41,17 @@ async def server_connect(ws: WebSocket):
 
         # Check token registration
         token = server_info['token']
-        server = await Server.filter(token=token)
-        if len(server) == 0:
+        servers = await Server.filter(token=token)
+        if len(servers) != 1:
             print('> [-] Token not registered')
             await ws.send_text('Your server token is not registered')
+            return
+
+        # Check token approved
+        server = servers[0]
+        if not server.approved:
+            print('> [-] Token not approved')
+            await ws.send_text('Your server token is not approved')
             return
 
         # Passed
