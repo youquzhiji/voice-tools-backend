@@ -1,4 +1,5 @@
 import json
+import re
 import traceback
 
 from fastapi import FastAPI, WebSocket
@@ -41,6 +42,10 @@ async def server_connect(ws: WebSocket):
 
         # Check token registration
         token = server_info['token']
+        if not re.compile(r'^[A-Z0-9]{2048}$').match(token):
+            print('> [-] Token format mismatch')
+            await ws.send_text('Your server token is in the wrong format (must be 2048 bit string)')
+            return
         server, created = await Server.get_or_create(token=token)
         if created:
             print(f'> [U] Token created ({token[:16]}...)')
