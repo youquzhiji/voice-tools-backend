@@ -5,6 +5,7 @@ from fastapi import FastAPI, WebSocket
 from tortoise.contrib.fastapi import register_tortoise
 
 from constants import version
+from coordinator.db import Server
 
 db_url = 'mysql://pwp:qwq@localhost:3306/6414'
 app = FastAPI()
@@ -33,17 +34,25 @@ async def server_connect(ws: WebSocket):
 
         # Check version
         if int(server_info['version']) != version:
-            print('> Version mismatch, closing')
+            print('> [-] Version mismatch, closing')
             await ws.send_text(f'Please upgrade your server to the latest version {version} '
                                f'(You\'re on {server_info["version"]})')
             return
 
+        # Check token registration
+        token = server_info['token']
+        server = await Server.filter(token=token)
+        if len(server) == 0:
+            print('> [-] Token not registered')
+            await ws.send_text('Your server token is not registered')
+            return
+
         # Passed
-        print('> Validation passed.')
+        print('> [+] Validation passed.')
         await ws.send_text('Success')
 
     except Exception as e:
-        print(f'> Error: {str(e)}')
+        print(f'> [-] Error: {str(e)}')
         await ws.send_text(f'Error: {str(e)}')
         return
 
