@@ -13,6 +13,6 @@ class Server(Model):
     trusted = fields.BooleanField(default=False)
 
     # Creation date
-    created = fields.DatetimeField()
+    created = fields.DatetimeField(auto_now=True)
 
-    nickname = fields.CharField(max_length=255)
+    nickname = fields.CharField(max_length=255, default='')
