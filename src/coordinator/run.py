@@ -1,3 +1,4 @@
+import asyncio
 import json
 import re
 import traceback
@@ -10,6 +11,7 @@ from coordinator.db import Server
 
 db_url = 'mysql://pwp:qwq@localhost:3306/6414'
 app = FastAPI()
+server_pool: list[WebSocket] = []
 
 
 @app.get('/')
@@ -17,9 +19,10 @@ async def root():
     return {'message': 'Hello World'}
 
 
-@app.get('/lifecycle')
-async def lifecycle():
-    return {'message': 'To be implemented'}
+@app.get('/test')
+async def endpoint_test():
+    # Get unclosed servers
+    return ''
 
 
 @app.websocket('/ws/server-connect')
@@ -54,18 +57,19 @@ async def server_connect(ws: WebSocket):
             await ws.send_text('Your server token is not approved')
             return
 
-        # Passed
+        # Passed, add to server pool
         print('> [+] Validation passed.')
         await ws.send_text('Success')
+        server_pool.append(ws)
 
     except Exception as e:
         print(f'> [-] Error: {str(e)}')
         await ws.send_text(f'Error: {str(e)}')
         return
 
-    # while True:
-    #     data = await ws.receive_text()
-    #     await ws.send_text(f"Message text was: {data}")
+    while True:
+        await asyncio.sleep(60)
+        await ws.send_json({'type': 'event', 'event_type': 'ping'})
 
 
 # Register Tortoise Database
