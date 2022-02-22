@@ -14,3 +14,5 @@ class Server(Model):
 
     # Creation date
     created = fields.DatetimeField()
+
+    nickname = fields.CharField(max_length=255)
