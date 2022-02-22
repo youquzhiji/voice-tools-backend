@@ -42,10 +42,10 @@ async def server_connect(ws: WebSocket):
         print('> Validation passed.')
         await ws.send_text('Success')
 
-    except:
-        traceback.print_exc()
-        await ws.send_text('Error occurred')
-        await ws.close()
+    except Exception as e:
+        print(f'> Error: {str(e)}')
+        await ws.send_text(f'Error: {str(e)}')
+        return
 
     # while True:
     #     data = await ws.receive_text()
