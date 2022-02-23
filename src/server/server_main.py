@@ -20,11 +20,30 @@ async def start():
         validation = await ws.recv()
         if validation.strip() != 'Success':
             raise ConnectionError(validation)
-        print('[+] Connected')
+        print('[+] Connected, start polling')
 
+        # Start receiving messages, they must be json format
         while True:
             msg = await ws.recv()
-            print(f'> Received message: {msg}')
+
+            # Ping
+            if msg == '1':
+                continue
+
+            msg = json.loads(msg)
+
+            # Event TODO: Event handlers
+            if msg['type'] == 'event':
+                print(f'> Received event {msg["event_type"]}')
+
+            # Compute command
+            elif msg['type'] == 'compute':
+                print(f'> Received compute request: {msg}')
+                # if msg['compute_type'] == 'pi'
+
+            else:
+                print(f'> Received unknown message: {msg}')
+
             await ws.send(json.dumps({'success': True}))
 
 
