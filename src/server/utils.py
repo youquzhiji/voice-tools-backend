@@ -1,8 +1,11 @@
+import platform
 import random
 import string
 import multiprocessing
 import time
 from pathlib import Path
+
+from cpuinfo import cpuinfo
 
 from constants import version, token_path
 from server.temp import make_pi
@@ -38,5 +41,9 @@ def benchmark() -> float:
 
 
 def get_server_info():
+    cpu_info = cpuinfo.get_cpu_info()
+    cpu_info['flags'] = None
+
     return {'token': load_token(), 'version': version, 'cpu_count': multiprocessing.cpu_count(),
-            'benchmark': benchmark()}
+            'benchmark': benchmark(), 'platform': platform.platform(), 'os': platform.system(),
+            'cpu': cpu_info}

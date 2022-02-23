@@ -22,6 +22,10 @@ class ServerInfo:
     cpu_count: int
     benchmark: int
 
+    platform: str
+    os: str
+    cpu: any
+
 
 @dataclass()
 class ConnectedServer:

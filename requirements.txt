@@ -5,3 +5,5 @@ websockets==10.2
 
 tortoise-orm[aiomysql]==0.18.1
 aiomysql==0.0.22
+
+py-cpuinfo==8.0.0
