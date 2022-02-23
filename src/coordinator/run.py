@@ -106,7 +106,8 @@ async def server_connect(ws: WebSocket):
     # Any other errors
     except Exception as e:
         print(f'> [-] {str(e)}')
-        await ws.send_text(f'Error: {str(e)}')
+        if ws.client_state == WebSocketState.CONNECTED:
+            await ws.send_text(f'Error: {str(e)}')
         return
 
     # Send ping https://github.com/tiangolo/fastapi/issues/709
