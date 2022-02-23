@@ -10,11 +10,13 @@ from server.utils import get_server_info
 
 
 async def start():
+    server_info = get_server_info()
+
     async with websockets.connect(f'ws://{coordinator_host}/ws/server-connect') as ws:
         ws: WebSocketClientProtocol
 
         # Send server information
-        await ws.send(json.dumps(get_server_info()))
+        await ws.send(json.dumps(server_info))
 
         # Receive validation results
         validation = await ws.recv()

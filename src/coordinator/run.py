@@ -20,6 +20,7 @@ class ServerInfo:
     token: str
     version: int
     cpu_count: int
+    benchmark: int
 
 
 @dataclass()
