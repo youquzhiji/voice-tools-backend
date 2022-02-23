@@ -10,7 +10,6 @@ from websockets.exceptions import ConnectionClosedError
 
 from constants import version
 from coordinator.db import Server
-from coordinator.utils import asserting
 
 db_url = 'mysql://pwp:qwq@localhost:3306/6414'
 app = FastAPI()
@@ -71,16 +70,16 @@ async def server_connect(ws: WebSocket):
         print(f'WS: Server {host} connected, validating')
 
         # Check version
-        asserting(int(info['version']) == version,
-                  f'Please upgrade to the latest version {version} (You\'re on {info["version"]})')
+        assert int(info['version']) == version,\
+            f'Please upgrade to the latest version {version} (You\'re on {info["version"]})'
 
         # Check token registration
         token = info['token']
-        asserting(re.compile(r'^[A-Z0-9]{2048}$').match(token), 'Token format mismatch')
+        assert re.compile(r'^[A-Z0-9]{2048}$').match(token), 'Token format mismatch'
         server, created = await Server.get_or_create(token=token)
         if created:
             print(f'> [U] Token created ({token[:16]}...)')
-        asserting(server.approved, 'Token not approved')
+        assert server.approved, 'Token not approved'
 
         if not server.nickname:
             server.nickname = token[16:]
