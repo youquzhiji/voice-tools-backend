@@ -3,6 +3,7 @@ import json
 import re
 import time
 import traceback
+from dataclasses import dataclass
 
 from fastapi import FastAPI, WebSocket
 from starlette.websockets import WebSocketState
@@ -12,9 +13,34 @@ from websockets.exceptions import ConnectionClosedError
 from constants import version
 from coordinator.db import Server
 
+
 db_url = 'mysql://pwp:qwq@localhost:3306/6414'
 app = FastAPI()
-server_pool: list[WebSocket] = []
+
+
+@dataclass()
+class ConnectedServer:
+    host: str
+    token: str
+    server: Server
+    ws: WebSocket
+
+
+class ServerPool:
+    """This class controls server pools and keeps information about each server"""
+    pool: list[ConnectedServer] = []
+
+    def remove_disconnected(self) -> None:
+        to_remove = [s for s in self.pool if s.ws.client_state == WebSocketState.DISCONNECTED]
+        for s in to_remove:
+            self.pool.remove(s)
+
+    def get_connected(self) -> list[ConnectedServer]:
+        self.remove_disconnected()
+        return self.pool
+
+
+pool = ServerPool()
 
 
 @app.get('/')
@@ -25,9 +51,14 @@ async def root():
 @app.get('/test')
 async def endpoint_test():
     # Get unclosed servers
-    con = [s for s in server_pool if s.client_state == WebSocketState.CONNECTED]
-    await con[0].send_json({'type': 'compute'})
-    return await con[0].receive_text()
+    target = pool.get_connected()[0].ws
+    await target.send_json({'type': 'compute'})
+    return await target.receive_text()
+
+
+@app.get('/pool')
+async def active_servers():
+    return [{'host': s.host} for s in pool.get_connected()]
 
 
 @app.websocket('/ws/server-connect')
@@ -68,7 +99,7 @@ async def server_connect(ws: WebSocket):
         # Passed, add to server pool
         print('> [+] Validation passed.')
         await ws.send_text('Success')
-        server_pool.append(ws)
+        pool.pool.append(ConnectedServer(host, token, server, ws))
 
     # Any other errors
     except Exception as e:
