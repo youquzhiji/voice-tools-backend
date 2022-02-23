@@ -1,5 +1,6 @@
 import random
 import string
+import multiprocessing
 from pathlib import Path
 
 from constants import version, token_path
@@ -21,4 +22,4 @@ def load_token() -> str:
 
 
 def get_server_info():
-    return {'token': load_token(), 'version': version}
+    return {'token': load_token(), 'version': version, 'cpu_count': multiprocessing.cpu_count()}
