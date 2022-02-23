@@ -1,4 +1,5 @@
 import asyncio
+import copy
 import json
 import re
 import uuid
@@ -56,11 +57,13 @@ class ServerPool:
     queued_tasks: list[Task] = []
 
     def remove_disconnected(self) -> None:
+        """Remove disconnected servers"""
         to_remove = [s for s in self.pool if s.ws.client_state == WebSocketState.DISCONNECTED]
         for s in to_remove:
             self.pool.remove(s)
 
     def get_connected(self) -> list[ConnectedServer]:
+        """Get connected servers"""
         self.remove_disconnected()
         return self.pool
 
@@ -122,7 +125,13 @@ async def endpoint_test():
 
 @app.get('/pool')
 async def active_servers():
-    return [{'host': s.ws.client.host} for s in pool.get_connected()]
+    def censor(server: ServerInfo):
+        info = copy.copy(server)
+        info.token = '[Censored]'
+        return info
+
+    return [{'host': s.ws.client.host, 'info': censor(s.server), 'max_tasks': s.max_tasks}
+            for s in pool.get_connected()]
 
 
 @app.websocket('/ws/server-connect')
