@@ -16,11 +16,20 @@ app = FastAPI()
 
 
 @dataclass()
-class ConnectedServer:
-    host: str
+class ServerInfo:
     token: str
-    server: Server
+    version: int
+    cpu_count: int
+
+
+@dataclass()
+class ConnectedServer:
+    server: ServerInfo
+    db: Server
     ws: WebSocket
+
+    # Maximum simultaneous tasks that this server can handle
+    max_tasks: int
 
 
 class ServerPool:
@@ -55,7 +64,7 @@ async def endpoint_test():
 
 @app.get('/pool')
 async def active_servers():
-    return [{'host': s.host} for s in pool.get_connected()]
+    return [{'host': s.ws.client.host} for s in pool.get_connected()]
 
 
 @app.websocket('/ws/server-connect')
@@ -64,30 +73,30 @@ async def server_connect(ws: WebSocket):
 
     # Validate server info
     try:
-        info = json.loads(await ws.receive_text())
-        host = ws.client.host
-
-        print(f'WS: Server {host} connected, validating')
+        info = ServerInfo(**json.loads(await ws.receive_text()))
+        print(f'WS: Server {ws.client.host} connected, validating')
 
         # Check version
-        assert int(info['version']) == version,\
-            f'Please upgrade to the latest version {version} (You\'re on {info["version"]})'
+        assert info.version == version,\
+            f'Please upgrade to the latest version {version} (You\'re on {info.version})'
 
         # Check token registration
-        token = info['token']
-        assert re.compile(r'^[A-Z0-9]{2048}$').match(token), 'Token format mismatch'
-        server, created = await Server.get_or_create(token=token)
+        assert re.compile(r'^[A-Z0-9]{2048}$').match(info.token), 'Token format mismatch'
+        server, created = await Server.get_or_create(token=info.token)
         if created:
-            print(f'> [U] Token created ({token[:16]}...)')
+            print(f'> [U] Token created ({info.token[:16]}...)')
         assert server.approved, 'Token not approved'
 
         if not server.nickname:
-            server.nickname = token[16:]
+            server.nickname = info.token[16:]
+
+        # Check max tasks
+        max_tasks = min(info.cpu_count, 8)
 
         # Passed, add to server pool
         print('> [+] Validation passed.')
         await ws.send_text('Success')
-        pool.pool.append(ConnectedServer(host, token, server, ws))
+        pool.pool.append(ConnectedServer(info, server, ws, max_tasks))
 
     # Any other errors
     except Exception as e:
