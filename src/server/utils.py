@@ -47,3 +47,18 @@ def get_server_info():
     return {'token': load_token(), 'version': version, 'cpu_count': multiprocessing.cpu_count(),
             'benchmark': benchmark(), 'platform': platform.platform(), 'os': platform.system(),
             'cpu': cpu_info}
+
+
+class Timer:
+    start: int
+
+    def __init__(self):
+        self.reset()
+
+    def log(self, **kwargs):
+        print(f'{(time.time_ns() - self.start) / 1000:.0f}ms', **kwargs)
+        self.reset()
+
+    def reset(self):
+        self.start = time.time_ns()
+
