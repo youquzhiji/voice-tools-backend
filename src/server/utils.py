@@ -55,8 +55,8 @@ class Timer:
     def __init__(self):
         self.reset()
 
-    def log(self, **kwargs):
-        print(f'{(time.time_ns() - self.start) / 1000:.0f}ms', **kwargs)
+    def log(self, *args):
+        print(f'{(time.time_ns() - self.start) / 1000000:.0f}ms', *args)
         self.reset()
 
     def reset(self):
