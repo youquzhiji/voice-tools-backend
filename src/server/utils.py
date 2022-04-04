@@ -55,9 +55,14 @@ class Timer:
     def __init__(self):
         self.reset()
 
+    def elapsed(self, reset: bool = True) -> float:
+        t = (time.time_ns() - self.start) / 1000000
+        if reset:
+            self.reset()
+        return t
+
     def log(self, *args):
-        print(f'{(time.time_ns() - self.start) / 1000000:.0f}ms', *args)
-        self.reset()
+        print(f'{self.elapsed():.0f}ms', *args)
 
     def reset(self):
         self.start = time.time_ns()
