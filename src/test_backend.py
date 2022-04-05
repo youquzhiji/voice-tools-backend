@@ -63,7 +63,7 @@ async def process(file: UploadFile, req: Request, with_mel_spect: bool = False):
     except IndexError as e:
         # If the audio is too short, an IndexError: index -1 is out of bounds for axis 0 with size 0 will be raised
         result = {}
-        freq_array = np.array([])
+        freq_array = np.ndarray((0, 4), 'float32')
         timer.log(f'Features calculation failed - IndexError: {e}')
 
     # Calculate ML
