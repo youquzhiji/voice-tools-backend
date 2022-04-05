@@ -62,8 +62,13 @@ async def process(file: UploadFile, req: Request, with_mel_spect: bool = False):
 
     # Calculate ML
     ina_config.auto_convert = sound.sampling_frequency != 16000
-    ml = seg(wav_full)
-    timer.log('ML Segmented')
+    try:
+        ml = seg(wav_full)
+        timer.log('ML Segmented')
+    except KeyError as e:
+        # If the audio is too short, a KeyError: 'pop from an empty set' might be raised
+        ml = []
+        timer.log(f'ML Segment Failed - KeyError: {e}')
 
     data = {'filename': file.filename, 'result': result, 'ml': ml,
             'freq_array': b64(freq_array.T)}
