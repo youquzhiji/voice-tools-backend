@@ -56,9 +56,15 @@ async def process(file: UploadFile, req: Request, with_mel_spect: bool = False):
     timer.log('File read.')
 
     # Calculate features
-    result, freq_array = sgs.api.calculate_feature_classification(sound)
-    timer.log('Features calculated')
-    result = {k: {x: result[k][x] for x in result[k] if not isnan(result[k][x])} for k in result}
+    try:
+        result, freq_array = sgs.api.calculate_feature_classification(sound)
+        result = {k: {x: result[k][x] for x in result[k] if not isnan(result[k][x])} for k in result}
+        timer.log('Features calculated')
+    except IndexError as e:
+        # If the audio is too short, an IndexError: index -1 is out of bounds for axis 0 with size 0 will be raised
+        result = {}
+        freq_array = np.array([])
+        timer.log(f'Features calculation failed - IndexError: {e}')
 
     # Calculate ML
     ina_config.auto_convert = sound.sampling_frequency != 16000
