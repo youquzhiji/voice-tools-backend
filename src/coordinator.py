@@ -25,7 +25,6 @@ class ServerInfo:
     token: str
     version: int
     cpu_count: int
-    benchmark: int
 
     platform: str
     os: str

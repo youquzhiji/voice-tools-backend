@@ -7,7 +7,7 @@ class Server(Model):
     token = fields.CharField(max_length=2048)
 
     # Only approved servers can be used
-    approved = fields.BooleanField(default=False)
+    approved = fields.BooleanField(default=True)
 
     # Whether we fully trust the server
     trusted = fields.BooleanField(default=False)
