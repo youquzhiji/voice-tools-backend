@@ -6,7 +6,7 @@ import websockets
 from websockets.exceptions import ConnectionClosedError
 from websockets.legacy.client import WebSocketClientProtocol
 
-from worker.utils import get_server_info
+from utils.utils import get_server_info
 
 
 coordinator_host = os.environ['COORDINATOR_HOST']

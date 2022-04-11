@@ -15,7 +15,7 @@ services:
     container_name: vt-coord
     hostname: coordinator
     build: ./src
-    command: python coordinator.py
+    command: uvicorn coordinator:app --host 0.0.0.0 --port 8019 --reload
     volumes:
       - ./src:/usr/src/app
     environment:
@@ -28,4 +28,4 @@ services:
     volumes:
       - ./src:/usr/src/app
     environment:
-      - COORDINATOR_HOST=coordinator:8000
+      - COORDINATOR_HOST=coordinator:8019
