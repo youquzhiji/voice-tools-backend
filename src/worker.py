@@ -6,19 +6,19 @@ import websockets
 from websockets.exceptions import ConnectionClosedError
 from websockets.legacy.client import WebSocketClientProtocol
 
-from utils.utils import get_server_info
+from utils.utils import get_worker_info
 
 
 coordinator_host = os.environ['COORDINATOR_HOST']
-server_info = get_server_info()
+worker_info = get_worker_info()
 
 
 async def start():
-    async with websockets.connect(f'ws://{coordinator_host}/ws/server-connect') as ws:
+    async with websockets.connect(f'ws://{coordinator_host}/ws/worker-connect') as ws:
         ws: WebSocketClientProtocol
 
-        # Send server information
-        await ws.send(json.dumps(server_info))
+        # Send worker information
+        await ws.send(json.dumps(worker_info))
 
         # Receive validation results
         validation = await ws.recv()

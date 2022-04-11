@@ -14,14 +14,14 @@ from tortoise.contrib.fastapi import register_tortoise
 from websockets.exceptions import ConnectionClosedError
 
 from constants import version
-from database.db import Server
+from database.db import Worker
 
 db_url = os.environ['MYSQL_URL']
 app = FastAPI()
 
 
 @dataclass()
-class ServerInfo:
+class WorkerInfo:
     token: str
     version: int
     cpu_count: int
@@ -32,12 +32,12 @@ class ServerInfo:
 
 
 @dataclass()
-class ConnectedServer:
-    server: ServerInfo
-    db: Server
+class ConnectedWorker:
+    worker: WorkerInfo
+    db: Worker
     ws: WebSocket
 
-    # Maximum simultaneous tasks that this server can handle
+    # Maximum simultaneous tasks that this worker can handle
     max_tasks: int
 
 
@@ -49,27 +49,27 @@ class Task:
     callback: Callable
 
 
-class ServerPool:
-    """This class controls server pools and keeps information about each server"""
-    pool: list[ConnectedServer] = []
+class WorkerPool:
+    """This class controls worker pools and keeps information about each worker"""
+    pool: list[ConnectedWorker] = []
     completed_tasks = []
-    running_tasks: dict[str, tuple[Task, ConnectedServer]] = {}
+    running_tasks: dict[str, tuple[Task, ConnectedWorker]] = {}
     queued_tasks: list[Task] = []
 
     def remove_disconnected(self) -> None:
-        """Remove disconnected servers"""
+        """Remove disconnected workers"""
         to_remove = [s for s in self.pool if s.ws.client_state == WebSocketState.DISCONNECTED]
         for s in to_remove:
             self.pool.remove(s)
 
-    def get_connected(self) -> list[ConnectedServer]:
-        """Get connected servers"""
+    def get_connected(self) -> list[ConnectedWorker]:
+        """Get connected workers"""
         self.remove_disconnected()
         return self.pool
 
-    def get_resting_servers(self) -> list[ConnectedServer]:
-        """Get servers that are not doing anything. If a server has a max_tasks of 6 and is resting,
-        then the server will appear in the result 6 times.
+    def get_resting_workers(self) -> list[ConnectedWorker]:
+        """Get workers that are not doing anything. If a worker has a max_tasks of 6 and is resting,
+        then the worker will appear in the result 6 times.
         """
         active = [s[1] for s in self.running_tasks.values()]
         resting = [[s] * (s.max_tasks - active.count(s)) for s in self.get_connected()]
@@ -77,7 +77,7 @@ class ServerPool:
 
     async def check_queue(self):
         """Check if any tasks in queue can be started"""
-        resting = self.get_resting_servers()
+        resting = self.get_resting_workers()
 
         # Run tasks
         while len(resting) > 0 and len(self.queued_tasks) > 0:
@@ -94,23 +94,23 @@ class ServerPool:
         self.queued_tasks.append(Task(id, task, params, callback))
         await self.check_queue()
 
-    async def add_server(self, server: ConnectedServer):
-        """Listen to server finishing requests"""
-        self.pool.append(server)
+    async def add_worker(self, worker: ConnectedWorker):
+        """Listen to worker finishing requests"""
+        self.pool.append(worker)
 
         async def listen():
             try:
-                while server.ws.client_state == WebSocketState.CONNECTED:
-                    text = await server.ws.receive_text()
+                while worker.ws.client_state == WebSocketState.CONNECTED:
+                    text = await worker.ws.receive_text()
                     print(text)
             except ConnectionClosedError:
-                print(f'> [-] {server.ws.client.host} Connection closed')
+                print(f'> [-] {worker.ws.client.host} Connection closed')
                 return
 
         await asyncio.gather(listen())
 
 
-pool = ServerPool()
+pool = WorkerPool()
 
 
 @app.get('/')
@@ -124,24 +124,24 @@ async def endpoint_test():
 
 
 @app.get('/pool')
-async def active_servers():
-    def censor(server: ServerInfo):
-        info = copy.copy(server)
+async def active_workers():
+    def censor(worker: WorkerInfo):
+        info = copy.copy(worker)
         info.token = '[Censored]'
         return info
 
-    return [{'host': s.ws.client.host, 'info': censor(s.server), 'max_tasks': s.max_tasks}
+    return [{'host': s.ws.client.host, 'info': censor(s.worker), 'max_tasks': s.max_tasks}
             for s in pool.get_connected()]
 
 
-@app.websocket('/ws/server-connect')
-async def server_connect(ws: WebSocket):
+@app.websocket('/ws/worker-connect')
+async def worker_connect(ws: WebSocket):
     await ws.accept()
 
-    # Validate server info
+    # Validate worker info
     try:
-        info = ServerInfo(**json.loads(await ws.receive_text()))
-        print(f'WS: Server {ws.client.host} connected, validating')
+        info = WorkerInfo(**json.loads(await ws.receive_text()))
+        print(f'WS: Worker {ws.client.host} connected, validating')
 
         # Check version
         assert info.version == version,\
@@ -149,21 +149,21 @@ async def server_connect(ws: WebSocket):
 
         # Check token registration
         assert re.compile(r'^[A-Z0-9]{2048}$').match(info.token), 'Token format mismatch'
-        server, created = await Server.get_or_create(token=info.token)
+        worker, created = await Worker.get_or_create(token=info.token)
         if created:
             print(f'> [U] Token created ({info.token[:16]}...)')
-        assert server.approved, 'Token not approved'
+        assert worker.approved, 'Token not approved'
 
-        if not server.nickname:
-            server.nickname = info.token[16:]
+        if not worker.nickname:
+            worker.nickname = info.token[16:]
 
         # Check max tasks
         max_tasks = min(info.cpu_count, 8)
 
-        # Passed, add to server pool
+        # Passed, add to worker pool
         print('> [+] Validation passed.')
         await ws.send_text('Success')
-        await pool.add_server(ConnectedServer(info, server, ws, max_tasks))
+        await pool.add_worker(ConnectedWorker(info, worker, ws, max_tasks))
 
     # Any other errors
     except Exception as e:

@@ -2,7 +2,7 @@ from tortoise.models import Model
 from tortoise import fields
 
 
-class Server(Model):
+class Worker(Model):
     id = fields.IntField(pk=True)
     token = fields.CharField(max_length=2048)
 

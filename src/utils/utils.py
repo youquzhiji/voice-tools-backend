@@ -24,7 +24,7 @@ def load_token() -> str:
         return load_token()
 
 
-def get_server_info():
+def get_worker_info():
     cpu_info = cpuinfo.get_cpu_info()
     cpu_info['flags'] = None
 
