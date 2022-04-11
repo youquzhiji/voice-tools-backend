@@ -5,6 +5,7 @@ import os
 import re
 import traceback
 import uuid
+from asyncio import Future
 from functools import reduce
 from typing import Callable
 
@@ -16,7 +17,7 @@ from starlette.websockets import WebSocketState
 from tortoise.contrib.fastapi import register_tortoise
 from websockets.exceptions import ConnectionClosedError
 
-from utils.models import version, ConnectedWorker, Task, WorkerInfo
+from utils.models import version, ConnectedWorker, Task, WorkerInfo, TOKEN_RE
 from database.db import Worker
 from tasks import compute_audio
 
@@ -29,8 +30,8 @@ class WorkerPool:
     """This class controls worker pools and keeps information about each worker"""
     pool: list[ConnectedWorker] = []
     completed_tasks = []
-    running_tasks: dict[str, tuple[Task, ConnectedWorker]] = {}
-    queued_tasks: list[Task] = []
+    running_tasks: dict[str, tuple[Task, ConnectedWorker, Future]] = {}
+    queued_tasks: list[tuple[Task, Future]] = []
 
     def remove_disconnected(self) -> None:
         """Remove disconnected workers"""
@@ -58,17 +59,19 @@ class WorkerPool:
         # Run tasks
         while len(resting) > 0 and len(self.queued_tasks) > 0:
             s = resting.pop(0)
-            t = self.queued_tasks.pop(0)
+            t, future = self.queued_tasks.pop(0)
 
             # Run and add to running list
             await s.ws.send_bytes(pickle_encode({'type': 'compute', 'task': t}))
-            self.running_tasks[t.id] = (t, s)
+            self.running_tasks[t.id] = (t, s, future)
 
-    async def run_compute(self, task: Callable, params: any, callback: Callable) -> None:
+    def run_compute(self, task: Callable, params: any) -> Future:
         """Enqueue a computation task"""
         id = str(uuid.uuid4())
-        self.queued_tasks.append(Task(id, task, params, callback))
-        await self.check_queue()
+        future = Future()
+        self.queued_tasks.append((Task(id, task, params), future))
+        asyncio.create_task(self.check_queue())
+        return future
 
     async def add_worker(self, worker: ConnectedWorker):
         """Listen to worker finishing requests"""
@@ -76,12 +79,31 @@ class WorkerPool:
 
         async def listen():
             try:
+                # Listen for result
                 while worker.ws.client_state == WebSocketState.CONNECTED:
+                    # Receive text
                     text = await worker.ws.receive_text()
                     obj = json.loads(text)
+
+                    # Missing required fields
+                    if 'id' not in obj or 'result' not in obj:
+                        print(f'> [-] Response from {worker.ws.client.host} ignored. It does not contain id or result')
+                        continue
+
                     id = obj['id']
+
+                    # ID not found
+                    if id not in self.running_tasks:
+                        print(f'> [-] Response from {worker.ws.client.host} ignored. Running task of id {id} not found')
+                        continue
+
                     print(f'> [R] Received Response for ID {id}, calling callback')
-                    # print(text)
+
+                    # Return result to asyncio future
+                    t, w, future = self.running_tasks.pop(id)
+                    future.set_result(obj['result'])
+                    future.done()
+
             except ConnectionClosedError:
                 print(f'> [-] {worker.ws.client.host} Connection closed')
                 return
@@ -101,7 +123,7 @@ async def root():
 async def process(file: UploadFile, req: Request, with_mel_spect: bool = False):
     print(f'Received request from {req.client.host}')
     params = {'file': await file.read(), 'file_name': file.filename, 'with_mel_spect': with_mel_spect}
-    await pool.run_compute(compute_audio, params, print)
+    return await pool.run_compute(compute_audio, params)
 
 
 @app.get('/pool')
@@ -129,7 +151,7 @@ async def worker_connect(ws: WebSocket):
             f'Please upgrade to the latest version {version} (You\'re on {info.version})'
 
         # Check token registration
-        assert re.compile(r'^[A-Z0-9]{2048}$').match(info.token), 'Token format mismatch'
+        assert TOKEN_RE.match(info.token), 'Token format mismatch'
         worker, created = await Worker.get_or_create(token=info.token)
         if created:
             print(f'> [U] Token created ({info.token[:16]}...)')
