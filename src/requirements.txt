@@ -13,4 +13,3 @@ py-cpuinfo==8.0.0
 ina-segmenter-modified==1.0.6
 speech-gender-statistics==1.0.9
 aiofiles
-torchaudio

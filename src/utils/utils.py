@@ -1,14 +1,12 @@
+import multiprocessing
 import platform
 import random
 import string
-import multiprocessing
-import time
 from pathlib import Path
 
 from cpuinfo import cpuinfo
 
-from constants import version, token_path
-from worker.temp import make_pi
+from constants import version
 
 
 def generate_token(length: int = 2048) -> str:
@@ -16,7 +14,7 @@ def generate_token(length: int = 2048) -> str:
 
 
 def load_token() -> str:
-    path = Path(token_path)
+    path = Path('./config/token.txt')
     if path.is_file():
         return path.read_text('UTF-8').strip()
     else:
@@ -32,23 +30,4 @@ def get_server_info():
 
     return {'token': load_token(), 'version': version, 'cpu_count': multiprocessing.cpu_count(),
             'platform': platform.platform(), 'os': platform.system(), 'cpu': cpu_info}
-
-
-class Timer:
-    start: int
-
-    def __init__(self):
-        self.reset()
-
-    def elapsed(self, reset: bool = True) -> float:
-        t = (time.time_ns() - self.start) / 1000000
-        if reset:
-            self.reset()
-        return t
-
-    def log(self, *args):
-        print(f'{self.elapsed():.0f}ms', *args)
-
-    def reset(self):
-        self.start = time.time_ns()
 

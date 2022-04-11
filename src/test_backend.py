@@ -10,14 +10,13 @@ import tensorflow as tf
 import tensorflow_io as tfio
 from fastapi import FastAPI, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from hypy_utils import Timer
 from inaSpeechSegmenter import Segmenter
 from inaSpeechSegmenter.constants import ina_config
 from inaSpeechSegmenter.features import to_wav
 from inaSpeechSegmenter.sidekit_mfcc import read_wav
 from sgs.config import sgs_config
 from starlette.requests import Request
-
-from worker.utils import Timer
 
 gpu_devices = tf.config.experimental.list_physical_devices('GPU')
 for device in gpu_devices:

@@ -15,17 +15,16 @@ services:
     container_name: vt-coord
     hostname: coordinator
     build: ./src
-    command: python coordinator/run.py
+    command: python coordinator.py
     volumes:
       - ./src:/usr/src/app
     environment:
       - MYSQL_URL=mysql://pwp:qwq@db:3306/6414
 
-
   worker:
     container_name: vt-worker
     build: ./src
-    command: python worker/worker_main.py
+    command: python worker.py
     volumes:
       - ./src:/usr/src/app
     environment:

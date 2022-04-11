@@ -1,6 +1,7 @@
 import asyncio
 import copy
 import json
+import os
 import re
 import uuid
 from dataclasses import dataclass
@@ -13,9 +14,9 @@ from tortoise.contrib.fastapi import register_tortoise
 from websockets.exceptions import ConnectionClosedError
 
 from constants import version
-from coordinator.db import Server
+from database.db import Server
 
-db_url = 'mysql://pwp:qwq@localhost:3306/6414'
+db_url = os.environ['MYSQL_URL']
 app = FastAPI()
 
 
