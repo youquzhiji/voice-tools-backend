@@ -2,6 +2,7 @@ import asyncio
 import copy
 import json
 import os
+import random
 import re
 import traceback
 import uuid
@@ -58,7 +59,8 @@ class WorkerPool:
 
         # Run tasks
         while len(resting) > 0 and len(self.queued_tasks) > 0:
-            s = resting.pop(0)
+            s = random.choice(resting)
+            print(f'Task assigned to {s.ws.client.host}')
             t, future = self.queued_tasks.pop(0)
 
             # Run and add to running list
@@ -106,6 +108,16 @@ class WorkerPool:
 
             except ConnectionClosedError:
                 print(f'> [-] {worker.ws.client.host} Connection closed')
+
+                # Remove running tasks
+                to_remove = [id for id, w in self.running_tasks.items() if w[1].worker is worker]
+                print(f'> [-] Tasks to remove: {to_remove}')
+
+                # Return future
+                for id in to_remove:
+                    t, w, future = self.running_tasks.pop(id)
+                    future.cancel('Worker disconnected')
+
                 return
 
         await asyncio.gather(listen())
@@ -161,7 +173,7 @@ async def worker_connect(ws: WebSocket):
             worker.nickname = info.token[16:]
 
         # Check max tasks
-        max_tasks = min(info.cpu_count, 8)
+        max_tasks = min(info.cpu_count, 2)
 
         # Passed, add to worker pool
         print('> [+] Validation passed.')
