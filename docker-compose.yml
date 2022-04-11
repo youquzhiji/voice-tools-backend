@@ -23,10 +23,14 @@ services:
     command: uvicorn coordinator:app --host 0.0.0.0 --port 8019 --reload
     expose:
       - "8019"
+    ports:
+      - "8019:8019"
     volumes:
       - ./src:/usr/src/app
     environment:
       - MYSQL_URL=mysql://pwp:qwq@db:3306/6414
+    depends_on:
+      - database
 
   worker:
     container_name: vt-worker
@@ -36,8 +40,13 @@ services:
       - ./src:/usr/src/app
     environment:
       - COORDINATOR_HOST=coordinator:8019
-    depends_on:
-      - coordinator
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
 
   test-backend:
     container_name: vt-test
