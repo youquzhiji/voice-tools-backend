@@ -1,0 +1,32 @@
+version: '3.8'
+
+services:
+  database:
+    container_name: vt-db
+    hostname: db
+    image: mariadb:10.8.2-rc-focal
+    environment:
+      - MARIADB_USER=pwp
+      - MARIADB_PASSWORD=qwq
+      - MARIADB_DATABASE=6414
+      - MARIADB_RANDOM_ROOT_PASSWORD=yes
+
+  coordinator:
+    container_name: vt-coord
+    hostname: coordinator
+    build: ./src
+    command: python coordinator/run.py
+    volumes:
+      - ./src:/usr/src/app
+    environment:
+      - MYSQL_URL=mysql://pwp:qwq@db:3306/6414
+
+
+  worker:
+    container_name: vt-worker
+    build: ./src
+    command: python worker/worker_main.py
+    volumes:
+      - ./src:/usr/src/app
+    environment:
+      - COORDINATOR_HOST=coordinator:8000

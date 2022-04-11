@@ -16,9 +16,8 @@ from inaSpeechSegmenter.features import to_wav
 from inaSpeechSegmenter.sidekit_mfcc import read_wav
 from sgs.config import sgs_config
 from starlette.requests import Request
-from tensorflow import config
 
-from server.utils import Timer
+from worker.utils import Timer
 
 gpu_devices = tf.config.experimental.list_physical_devices('GPU')
 for device in gpu_devices:
@@ -31,7 +30,7 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True)
 
 seg = Segmenter()
 np.seterr(invalid='ignore')
-sgs_config.time_step = 0.032
+sgs_config.time_step = 0.01
 
 
 def b64(nd: np.ndarray) -> dict[str, any]:

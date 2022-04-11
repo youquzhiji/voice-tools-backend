@@ -1,14 +1,15 @@
 import asyncio
 import json
+import os
 
 import websockets
 from websockets.exceptions import ConnectionClosedError
 from websockets.legacy.client import WebSocketClientProtocol
 
-from constants import coordinator_host
-from server.utils import get_server_info
+from worker.utils import get_server_info
 
 
+coordinator_host = os.environ['COORDINATOR_HOST']
 server_info = get_server_info()
 
 
