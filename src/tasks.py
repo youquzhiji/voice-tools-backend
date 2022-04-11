@@ -1,0 +1,78 @@
+import base64
+from pathlib import Path
+
+import numpy as np
+import parselmouth
+import sgs
+import tensorflow as tf
+import tensorflow_io as tfio
+from hypy_utils import Timer
+from inaSpeechSegmenter import Segmenter
+from inaSpeechSegmenter.constants import ina_config
+from inaSpeechSegmenter.features import to_wav
+from inaSpeechSegmenter.sidekit_mfcc import read_wav
+from sgs.config import sgs_config
+
+gpu_devices = tf.config.experimental.list_physical_devices('GPU')
+for device in gpu_devices:
+    tf.config.experimental.set_memory_growth(device, True)
+
+seg = Segmenter()
+np.seterr(invalid='ignore')
+sgs_config.time_step = 0.01
+
+
+def b64(nd: np.ndarray) -> dict[str, any]:
+    return {'bytes': base64.b64encode(nd.tobytes()), 'shape': nd.shape}
+
+
+def compute(file: Path, with_mel_spect: bool):
+    """
+    Compute user request
+
+    :param file: Local file
+    :param with_mel_spect: Whether to compute mel spectrogram
+    :return: Computation result
+    """
+    timer = Timer()
+
+    # Download file to a temporary location
+    timer.log('Downloaded.')
+
+    # Read file
+    wav_full = to_wav(file, sr=None)
+    y, sr, _ = read_wav(wav_full)
+    sound = parselmouth.Sound(y, sr)
+    timer.log('File read.')
+
+    # Calculate features
+    try:
+        result, freq_array = sgs.api.calculate_feature_classification(sound)
+        result = {k: {x: result[k][x] for x in result[k] if not np.isnan(result[k][x])} for k in result}
+        timer.log('Features calculated')
+    except IndexError as e:
+        # If the audio is too short, an IndexError: index -1 is out of bounds for axis 0 with size 0 will be raised
+        result = {}
+        freq_array = np.ndarray((0, 4), 'float32')
+        timer.log(f'Features calculation failed - IndexError: {e}')
+
+    # Calculate ML
+    ina_config.auto_convert = sr != 16000
+    try:
+        ml = seg(wav_full)
+        timer.log('ML Segmented')
+    except KeyError as e:
+        # If the audio is too short, a KeyError: 'pop from an empty set' might be raised
+        ml = []
+        timer.log(f'ML Segment Failed - KeyError: {e}')
+
+    data = {'result': result, 'ml': ml, 'freq_array': b64(freq_array.T)}
+
+    # Calculate mel spectrogram (if needed)
+    if with_mel_spect:
+        t = tfio.audio.spectrogram(y, 2048, 2048, 512)
+        mel_spectrogram = tfio.audio.melscale(t, rate=sr, mels=128, fmin=0, fmax=8000)
+        data['spec'] = b64(mel_spectrogram.numpy())
+        data['spec_sr'] = sr
+
+    return data
