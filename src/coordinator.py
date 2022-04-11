@@ -3,50 +3,26 @@ import copy
 import json
 import os
 import re
+import traceback
 import uuid
-from dataclasses import dataclass
 from functools import reduce
 from typing import Callable
 
-from fastapi import FastAPI, WebSocket
+from fastapi import FastAPI, WebSocket, UploadFile
+from hypy_utils.serializer import pickle_encode
+from starlette.middleware.cors import CORSMiddleware
+from starlette.requests import Request
 from starlette.websockets import WebSocketState
 from tortoise.contrib.fastapi import register_tortoise
 from websockets.exceptions import ConnectionClosedError
 
-from constants import version
+from utils.models import version, ConnectedWorker, Task, WorkerInfo
 from database.db import Worker
+from tasks import compute_audio
 
 db_url = os.environ['MYSQL_URL']
 app = FastAPI()
-
-
-@dataclass()
-class WorkerInfo:
-    token: str
-    version: int
-    cpu_count: int
-
-    platform: str
-    os: str
-    cpu: any
-
-
-@dataclass()
-class ConnectedWorker:
-    worker: WorkerInfo
-    db: Worker
-    ws: WebSocket
-
-    # Maximum simultaneous tasks that this worker can handle
-    max_tasks: int
-
-
-@dataclass()
-class Task:
-    id: str
-    task: str
-    params: any
-    callback: Callable
+app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True)
 
 
 class WorkerPool:
@@ -58,7 +34,7 @@ class WorkerPool:
 
     def remove_disconnected(self) -> None:
         """Remove disconnected workers"""
-        to_remove = [s for s in self.pool if s.ws.client_state == WebSocketState.DISCONNECTED]
+        to_remove = [s for s in self.pool if s.ws.client_state != WebSocketState.CONNECTED]
         for s in to_remove:
             self.pool.remove(s)
 
@@ -85,10 +61,10 @@ class WorkerPool:
             t = self.queued_tasks.pop(0)
 
             # Run and add to running list
-            await s.ws.send_json({'type': 'compute', 'id': t.id, 'task': t.task, 'params': t.params})
+            await s.ws.send_bytes(pickle_encode({'type': 'compute', 'task': t}))
             self.running_tasks[t.id] = (t, s)
 
-    async def run_compute(self, task: str, params, callback: Callable) -> None:
+    async def run_compute(self, task: Callable, params: any, callback: Callable) -> None:
         """Enqueue a computation task"""
         id = str(uuid.uuid4())
         self.queued_tasks.append(Task(id, task, params, callback))
@@ -102,7 +78,10 @@ class WorkerPool:
             try:
                 while worker.ws.client_state == WebSocketState.CONNECTED:
                     text = await worker.ws.receive_text()
-                    print(text)
+                    obj = json.loads(text)
+                    id = obj['id']
+                    print(f'> [R] Received Response for ID {id}, calling callback')
+                    # print(text)
             except ConnectionClosedError:
                 print(f'> [-] {worker.ws.client.host} Connection closed')
                 return
@@ -118,9 +97,11 @@ async def root():
     return {'message': 'Hello World'}
 
 
-@app.get('/test')
-async def endpoint_test():
-    await pool.run_compute('pi', 1000, print)
+@app.post('/process')
+async def process(file: UploadFile, req: Request, with_mel_spect: bool = False):
+    print(f'Received request from {req.client.host}')
+    params = {'file': await file.read(), 'file_name': file.filename, 'with_mel_spect': with_mel_spect}
+    await pool.run_compute(compute_audio, params, print)
 
 
 @app.get('/pool')
@@ -167,6 +148,7 @@ async def worker_connect(ws: WebSocket):
 
     # Any other errors
     except Exception as e:
+        traceback.print_exc()
         print(f'> [-] {str(e)}')
         if ws.client_state == WebSocketState.CONNECTED:
             await ws.send_text(f'Error: {str(e)}')

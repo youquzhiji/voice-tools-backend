@@ -6,7 +6,7 @@ from pathlib import Path
 
 from cpuinfo import cpuinfo
 
-from constants import version
+from utils.models import version
 
 
 def generate_token(length: int = 2048) -> str:

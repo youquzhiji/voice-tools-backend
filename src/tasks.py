@@ -1,4 +1,5 @@
 import base64
+import datetime
 from pathlib import Path
 
 import numpy as np
@@ -23,24 +24,30 @@ sgs_config.time_step = 0.01
 
 
 def b64(nd: np.ndarray) -> dict[str, any]:
-    return {'bytes': base64.b64encode(nd.tobytes()), 'shape': nd.shape}
+    return {'bytes': base64.b64encode(nd.tobytes()).decode(), 'shape': nd.shape}
 
 
-def compute(file: Path, with_mel_spect: bool):
+def compute_audio(file: bytes, file_name: str, with_mel_spect: bool):
     """
     Compute user request
 
     :param file: Local file
+    :param file_name: File name
     :param with_mel_spect: Whether to compute mel spectrogram
     :return: Computation result
     """
     timer = Timer()
 
+    tmp_file = Path(datetime.datetime.now().strftime(f'%Y-%m-%d %H-%M-%S {Path(file_name).suffix}'))
+    tmp_file = Path(f'temp/{tmp_file}')
+    tmp_file.parent.mkdir(parents=True, exist_ok=True)
+    tmp_file.write_bytes(file)
+
     # Download file to a temporary location
     timer.log('Downloaded.')
 
     # Read file
-    wav_full = to_wav(file, sr=None)
+    wav_full = to_wav(tmp_file, sr=None)
     y, sr, _ = read_wav(wav_full)
     sound = parselmouth.Sound(y, sr)
     timer.log('File read.')

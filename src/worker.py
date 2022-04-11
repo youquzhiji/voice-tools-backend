@@ -1,11 +1,14 @@
 import asyncio
 import json
 import os
+import traceback
 
 import websockets
+from hypy_utils.serializer import pickle_decode, pickle_encode
 from websockets.exceptions import ConnectionClosedError
 from websockets.legacy.client import WebSocketClientProtocol
 
+from utils.models import Task
 from utils.utils import get_worker_info
 
 
@@ -14,6 +17,7 @@ worker_info = get_worker_info()
 
 
 async def start():
+    print(f'Connecting to ws://{coordinator_host}')
     async with websockets.connect(f'ws://{coordinator_host}/ws/worker-connect') as ws:
         ws: WebSocketClientProtocol
 
@@ -31,10 +35,12 @@ async def start():
             msg = await ws.recv()
 
             # Ping
-            if msg == '1':
+            if isinstance(msg, str):
+                if msg != '1':
+                    print(f'Unknown message received: {msg}')
                 continue
 
-            msg = json.loads(msg)
+            msg = pickle_decode(msg)
 
             # Event TODO: Event handlers
             if msg['type'] == 'event':
@@ -42,19 +48,21 @@ async def start():
 
             # Compute command
             elif msg['type'] == 'compute':
-                print(f'> Received compute request: {msg}')
-                # if msg['compute_type'] == 'pi'
+                print(f'> Received compute request.')
+                task: Task = msg['task']
+                print(task.fn)
+                result = task.run()
+                await ws.send(json.dumps({'id': task.id, 'result': result}))
 
             else:
                 print(f'> Received unknown message: {msg}')
-
-            await ws.send(json.dumps({'success': True}))
 
 
 if __name__ == '__main__':
     while True:
         try:
             asyncio.run(start())
-        except (ConnectionClosedError, TimeoutError) as e:
+        except Exception as e:
+            traceback.print_exc()
             print(f'[-] Connection closed, reconnecting... ({str(e)})')
             continue
