@@ -1,6 +1,11 @@
 version: '3.8'
 
 services:
+  cuda-container:
+    container_name: vt-cuda
+    build: cuda-container
+    image: hykilpikonna/vt-cuda:1.0.0
+
   database:
     container_name: vt-db
     hostname: db
@@ -16,6 +21,8 @@ services:
     hostname: coordinator
     build: ./src
     command: uvicorn coordinator:app --host 0.0.0.0 --port 8019 --reload
+    expose:
+      - "8019"
     volumes:
       - ./src:/usr/src/app
     environment:
@@ -29,3 +36,12 @@ services:
       - ./src:/usr/src/app
     environment:
       - COORDINATOR_HOST=coordinator:8019
+    depends_on:
+      - coordinator
+
+  test-backend:
+    container_name: vt-test
+    build: ./src
+    command: uvicorn test_backend:app --host 0.0.0.0 --port 8019 --reload
+    volumes:
+      - ./src:/usr/src/app
