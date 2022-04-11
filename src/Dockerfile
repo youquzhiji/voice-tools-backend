@@ -8,6 +8,10 @@ WORKDIR /usr/src/app
 ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONUNBUFFERED 1
 
+#ENV LD_LIBRARY_PATH=/usr/local/cuda/lib64:/usr/local/cuda/compat:/usr/local/nvidia/lib64:/usr/local/nvidia/lib
+ENV LD_LIBRARY_PATH=/usr/local/cuda/lib64:/usr/local/nvidia/lib64:/usr/local/nvidia/lib
+ENV LIBRARY_PATH=${LIBRARY_PATH}:/usr/local/cuda/lib64
+
 ## install libraries
 #RUN apt update
 #RUN apt install libsndfile1-dev ffmpeg -y

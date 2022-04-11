@@ -45,3 +45,10 @@ services:
     command: uvicorn test_backend:app --host 0.0.0.0 --port 8019 --reload
     volumes:
       - ./src:/usr/src/app
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
