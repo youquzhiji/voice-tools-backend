@@ -48,8 +48,8 @@ services:
               count: 1
               capabilities: [gpu]
 
-  test-backend:
-    container_name: vt-test
+  vt-single:
+    container_name: vt-single
     build: ./src
     command: uvicorn test_backend:app --host 0.0.0.0 --port 8019 --reload
     volumes:
@@ -61,3 +61,4 @@ services:
             - driver: nvidia
               count: 1
               capabilities: [gpu]
+    image: hykilpikonna/vt-single-backend:1.0.0
