@@ -3,6 +3,7 @@ import os
 import warnings
 from datetime import datetime
 from pathlib import Path
+from typing import NamedTuple
 
 import matplotlib
 from inaSpeechSegmenter import Segmenter
@@ -13,6 +14,28 @@ from telegram.ext import Updater, CallbackContext, Dispatcher, CommandHandler, M
 
 from bot import utils
 from bot.render import draw_ml
+
+
+class AnalyzeComponents(NamedTuple):
+    """
+    Defines which aspects of the voice should the bot analyze.
+    """
+    ml: bool
+    spect: bool
+    stats: bool
+
+    @classmethod
+    def from_command(cls, cmd: str) -> "AnalyzeComponents":
+        out = cls(False, False, False)
+
+        cmd = cmd.lower().strip()
+        full = cmd == 'analyze'
+
+        out.ml = full or cmd in ['ml']
+        out.spect = full or cmd in ['spectrogram', 'formant', 'pitch']
+        out.stats = full or cmd in ['stats']
+
+        return out
 
 
 def segment(file) -> list[ResultFrame]:
@@ -28,66 +51,81 @@ def cmd_start(u: Update, c: CallbackContext):
     r(u, '欢迎! 点下面的录音按钮就可以开始啦w')
 
 
-def process_audio(message: Message):
-    # Only when replying to voice or audio
-    audio = message.audio or message.voice
-    if not audio:
-        return
-
-    # Download audio file
-    date = datetime.now().strftime('%Y-%m-%d %H-%M')
-    try:
-        downloader = bot.getFile(audio.file_id)
-    except:
-        downloader = bot.getFile(audio.file_id)
-    file = Path(tmpdir).joinpath(f'{date} {message.from_user.name[1:]}.mp3')
-    print(downloader, '->', file)
-    downloader.download(file)
-
+def cmd_ml(file: Path, msg: Message):
     # Segment file
     result = segment(file)
 
     # Null case
     print(result)
-    if len(result) == 0:
-        bot.send_message(message.chat_id, '分析失败, 大概是音量太小或者时长太短吧, 再试试w')
-        return
+    assert len(result), '分析失败, 大概是音量太小或者时长太短吧, 再试试w'
 
     # Draw results
     with draw_ml(str(file), result) as buf:
         f, m, o, pf = get_result_percentages(result)
-        msg = f"分析结果: {f*100:.0f}% 🙋‍♀️ | {m*100:.0f}% 🙋‍♂️ | {o*100:.0f}% 🚫\n" \
-              f"(结果仅供参考, 如果结果不是你想要的，那就是模型的问题，欢迎反馈)\n" \
-              f"" \
-              f"(因为这个模型基于法语数据, 和中文发音习惯有差异, 所以这个识别结果可能不准)"
-        bot.send_photo(message.chat_id, photo=buf, caption=msg,
-                       reply_to_message_id=message.message_id)
+        send = f"分析结果: {f*100:.0f}% 🙋‍♀️ | {m*100:.0f}% 🙋‍♂️ | {o*100:.0f}% 🚫\n" \
+               f"(结果仅供参考, 如果结果不是你想要的，那就是模型的问题，欢迎反馈)\n" \
+               f"" \
+               f"(因为这个模型基于法语数据, 和中文发音习惯有差异, 所以这个识别结果可能不准)"
+        bot.send_photo(msg.chat_id, photo=buf, caption=send,
+                       reply_to_message_id=msg.message_id)
 
 
-def cmd_executor(u: Update, c: CallbackContext):
-    reply = u.effective_message.reply_to_message
+def process_audio(cmd: str, msg: Message):
+    audio = msg.audio or msg.voice
+    assert audio
 
-    # Parse command
-    text = u.effective_message.text
-    if not text:
-        return
-    cmd = text.lower().split()[0].strip()
+    # Download audio file
+    date = datetime.now().strftime('%Y-%m-%d %H-%M')
+    downloader = bot.getFile(audio.file_id)
+    file = Path(tmpdir).joinpath(f'{date} {msg.from_user.name[1:]}.mp3')
+    print(downloader, '->', file)
+    downloader.download(file)
 
-    if cmd[0] not in '!/':
-        return
-    cmd = cmd[1:]
+    # Command flags
+    flags = AnalyzeComponents.from_command(cmd)
 
-    if cmd not in ['analyze', 'ml', 'formant', 'pitch', 'stats']:
-        return
+    if flags.ml:
+        cmd_ml(file, msg)
+    if flags.spect:
+        raise AssertionError('Spect 功能还没有实现')
+    if flags.stats:
+        raise AssertionError('Stats 功能还没有实现')
 
-    if u.effective_user.id == reply.from_user.id:
-        process_audio(reply)
-    else:
-        r(u, '只有自己能分析自己的音频哦 👀')
+
+def cmd_reply(u: Update, c: CallbackContext):
+    try:
+        reply = u.effective_message.reply_to_message
+
+        # Parse command (No error if this is not a command for the bot)
+        text = u.effective_message.text
+        assert text
+
+        cmd = text.lower().split()[0].strip()
+        assert cmd[0] in '!/'
+
+        cmd = cmd[1:]
+        assert cmd in ['analyze', 'ml', 'formant', 'pitch', 'stats']
+
+        # Parse Audio (No error if the replied message doesn't contain audio)
+        audio = reply.audio or reply.voice
+        assert audio
+
+        # Check replying to oneself
+        assert u.effective_user.id == reply.from_user.id, '只有自己能分析自己的音频哦 👀'
+
+        process_audio(cmd, reply)
+
+    except AssertionError as e:
+        if str(e) != '':
+            r(u, str(e))
 
 
 def on_audio(u: Update, c: CallbackContext):
-    process_audio(u.effective_message)
+    try:
+        process_audio(u.effective_message.text.lower().split()[0].strip(), u.effective_message)
+    except AssertionError as e:
+        if str(e) != '':
+            r(u, str(e))
 
 
 def get_result_percentages(result: list[ResultFrame]) -> tuple[float, float, float, float]:
@@ -131,13 +169,11 @@ if __name__ == '__main__':
     tmpdir.mkdir(exist_ok=True, parents=True)
 
     # Find telegram token
-    path = Path(os.path.abspath(__file__)).parent
-    db_path = path.joinpath('voice-bot-db.json')
+    # path = Path(os.path.abspath(__file__)).parent.parent.parent
     if 'tg_token' in os.environ:
         tg_token = os.environ['tg_token']
     else:
-        with open(path.joinpath('voice-bot-token.txt'), 'r', encoding='utf-8') as f:
-            tg_token = f.read().strip()
+        tg_token = Path('voice-bot-token.txt').read_text('utf-8').strip()
 
     # Telegram login
     updater = Updater(token=tg_token, use_context=True)
@@ -145,10 +181,10 @@ if __name__ == '__main__':
     bot = updater.bot
 
     dispatcher.add_handler(CommandHandler('start', cmd_start, filters=Filters.chat_type.private))
-    dispatcher.add_handler(CommandHandler('analyze', cmd_executor, filters=Filters.reply))
-    dispatcher.add_handler(MessageHandler(Filters.reply, cmd_executor))
+    dispatcher.add_handler(CommandHandler('analyze', cmd_reply, filters=Filters.reply))
+    dispatcher.add_handler(MessageHandler(Filters.reply, cmd_reply))
     dispatcher.add_handler(MessageHandler(Filters.voice & Filters.chat_type.private, on_audio))
     dispatcher.add_handler(MessageHandler(Filters.audio & Filters.chat_type.private, on_audio))
 
-    print('Starting bot...')
+    print('Bot started.')
     updater.start_polling()
