@@ -14,3 +14,9 @@ ina-segmenter-modified==1.0.6
 speech-gender-statistics==1.0.9
 aiofiles
 hypy_utils
+
+# Bot rendering
+hyfetch>=1.0.7
+matplotlib
+tensorflow-io
+python-telegram-bot
