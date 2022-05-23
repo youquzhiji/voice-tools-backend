@@ -1,16 +1,31 @@
 import io
+import sys
 from pathlib import Path
 
+import sgs
+
+sys.path.append(str(Path(__file__).parent))
+sys.path.append(str(Path(__file__).parent.parent))
+
+import PIL.Image
 import matplotlib.pyplot as plt
 import numpy as np
+import parselmouth
 import scipy.io.wavfile
+import tensorflow_io as tfio
+from hypy_utils import Timer
 from inaSpeechSegmenter.constants import ResultFrame
 from inaSpeechSegmenter.features import to_wav
+from inaSpeechSegmenter.sidekit_mfcc import read_wav
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
+from numba import njit
+from numpy import ndarray
+
+from bot.color_scale import get_raw, create_gradient_hex
 
 
-def draw_ml(file: str, result: list[ResultFrame]):
+def draw_ml(file: str, result: list[ResultFrame]) -> io.BytesIO:
     """
     Draw segmentation result
 
@@ -53,3 +68,79 @@ def draw_ml(file: str, result: list[ResultFrame]):
         return buf
 
     return to_wav(file, tmp_callback=wav_callback)
+
+
+@njit(cache=True)
+def draw_mspect_image(spec: ndarray, gradient: ndarray) -> ndarray:
+    """
+    Draw mel spectrogram to a ndarray
+    """
+    w, spec_h = spec.shape
+    h = 400
+
+    # Create image
+    img = np.zeros((h, w, 3), dtype='uint8')
+
+    # Value bounds
+    v_min, v_max = np.min(spec), np.max(spec)
+    v_range = v_max - v_min
+
+    # Draw each pixel
+    y_conversion = spec_h / h
+    for x in range(len(spec)):
+        for y in range(h):
+            value = spec[x, int(y * y_conversion)]
+
+            # Draw
+            img[h - y - 1, x, :] = get_raw(gradient, float((value - v_min) / v_range))
+
+    return img
+
+
+@njit(cache=True)
+def hz_to_mel(hz: float) -> float:
+    return 2595 * np.log10(1 + hz / 700)
+
+
+def draw_spect_line(img: ndarray, line: ndarray, color: ndarray):
+    w, h, _ = img.shape
+    x_len = len(line) / w
+
+    # Mel mapping
+    max_mel = hz_to_mel(8000)
+    line = [h - hz_to_mel(x) / max_mel * h for x in line]
+
+    for x in range(w):
+        window_mean = np.mean(line[int(x_len * x): np.ceil(x_len * (x + 1))])
+        img[window_mean, x, :] = color
+
+
+def draw_mspect(spec: ndarray, freq_array: ndarray, sr: int):
+    timer = Timer()
+
+    # Color Gradient
+    gradient = create_gradient_hex(['#232323', '#4F1879', '#B43A78', '#F98766', '#FCFAC0'])
+
+    spec = np.log10(spec + 0.1)
+    img = draw_mspect_image(spec, gradient)
+
+    timer.log('Done drawing')
+
+    # Create image
+    my_img = PIL.Image.fromarray(img)
+    return my_img
+
+
+if __name__ == '__main__':
+    # Read file
+    y, sr, _ = read_wav(r"Z:\EECS 6414\voice_cnn\VT 150hz baseline example.converted.wav")
+    sound = parselmouth.Sound(y, sr)
+
+    t = tfio.audio.spectrogram(y, 2048, 2048, 256)
+    mel_spectrogram = tfio.audio.melscale(t, rate=sr, mels=128, fmin=0, fmax=8000)
+
+    result, freq_array = sgs.api.calculate_feature_classification(sound)
+
+    mspec = draw_mspect(mel_spectrogram.numpy(), freq_array, sr)
+    mspec.show()
+
