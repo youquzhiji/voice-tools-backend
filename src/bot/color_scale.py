@@ -1,55 +1,73 @@
+from __future__ import annotations
+
 import numpy as np
 from hyfetch.color_util import RGB
+from numba import njit, uint8
 from numpy import ndarray
 
 
-def get_color_with_ratio(c1: int, c2: int, ratio: float) -> int:
-    return round(c2 * ratio + c1 * (1 - ratio))
+def create_gradient_hex(colors: list[str], resolution: int = 300) -> ndarray:
+    """
+    Create gradient array from hex
+    """
+    colors = np.array([RGB.from_hex(s) for s in colors])
+    return create_gradient(colors, resolution)
+
+
+@njit(cache=True)
+def create_gradient(colors: ndarray, resolution: int) -> ndarray:
+    """
+    Create gradient 2d array.
+
+    Usage: arr[ratio / len(arr), :] = Scaled gradient color at that point
+    """
+    result = np.zeros((resolution * (len(colors) - 1), 3), dtype='uint8')
+
+    # Create gradient mapping
+    for i in range(len(colors) - 1):
+        c1 = colors[i, :]
+        c2 = colors[i + 1, :]
+        bi = i * resolution
+
+        for r in range(resolution):
+            ratio = r / resolution
+            result[bi + r, :] = c2 * ratio + c1 * (1 - ratio)
+
+    return result
+
+
+@njit(cache=True)
+def get_raw(gradient: ndarray | uint8[:, :], ratio: float) -> ndarray:
+    """
+    :param gradient: Gradient array (2d)
+    :param ratio: Between 0-1
+    :return: RGB subarray (1d, has 3 values)
+    """
+    if ratio == 1:
+        return gradient[-1, :]
+
+    i = int(ratio * len(gradient))
+    return gradient[i, :]
 
 
 class Scale:
-    colors: list[RGB]
+    colors: ndarray
     rgb: ndarray
 
-    def __init__(self, scale: list[str], resolution: int = 500):
-        self.colors = [RGB.from_hex(s) for s in scale]
-        res = resolution * len(self.colors) - 1
-
-        result = []
-
-        # Create gradient mapping
-        for i in range(len(self.colors) - 1):
-            c1 = self.colors[i]
-            c2 = self.colors[i + 1]
-
-            for r in range(resolution):
-                ratio = r / resolution
-
-                r = get_color_with_ratio(c1.r, c2.r, ratio)
-                g = get_color_with_ratio(c1.g, c2.g, ratio)
-                b = get_color_with_ratio(c1.b, c2.b, ratio)
-
-                result.append(RGB(r, g, b))
-
-        # Convert to 2D array
-        nd = np.zeros((len(result), 3), dtype='uint8')
-        for i, r in enumerate(result):
-            nd[i, :] = r
-
-        self.rgb = nd
+    def __init__(self, scale: list[str], resolution: int = 300):
+        self.colors = np.array([RGB.from_hex(s) for s in scale])
+        self.rgb = create_gradient(self.colors, resolution)
 
     def __call__(self, ratio: float) -> RGB:
         """
         :param ratio: Between 0-1
         """
-        if ratio == 1:
-            return self.colors[-1]
-
-        i = int(ratio * len(self.rgb))
-        return RGB(*self.rgb[i, :])
+        return RGB(*get_raw(self.rgb, ratio))
 
 
 if __name__ == '__main__':
     scale = Scale(['#232323', '#4F1879', '#B43A78', '#F98766', '#FCFAC0'])
-    for i in range(11):
-        print(scale(i / 10).to_ansi_rgb(False) + ' ')
+
+    colors = 100
+    for i in range(colors + 1):
+        print(scale(i / colors).to_ansi_rgb(False), end=' ')
