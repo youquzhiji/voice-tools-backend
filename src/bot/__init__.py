@@ -1,6 +1,7 @@
 
 import os
 import warnings
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import NamedTuple
@@ -16,7 +17,8 @@ from bot import utils
 from bot.render import draw_ml
 
 
-class AnalyzeComponents(NamedTuple):
+@dataclass
+class AnalyzeComponents:
     """
     Defines which aspects of the voice should the bot analyze.
     """
@@ -86,10 +88,10 @@ def process_audio(cmd: str, msg: Message):
 
     if flags.ml:
         cmd_ml(file, msg)
-    if flags.spect:
-        raise AssertionError('Spect 功能还没有实现')
-    if flags.stats:
-        raise AssertionError('Stats 功能还没有实现')
+    # if flags.spect:
+    #     raise AssertionError('Spect 功能还没有实现')
+    # if flags.stats:
+    #     raise AssertionError('Stats 功能还没有实现')
 
 
 def cmd_reply(u: Update, c: CallbackContext):
@@ -122,7 +124,7 @@ def cmd_reply(u: Update, c: CallbackContext):
 
 def on_audio(u: Update, c: CallbackContext):
     try:
-        process_audio(u.effective_message.text.lower().split()[0].strip(), u.effective_message)
+        process_audio('analyze', u.effective_message)
     except AssertionError as e:
         if str(e) != '':
             r(u, str(e))
