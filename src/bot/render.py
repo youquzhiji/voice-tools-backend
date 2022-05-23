@@ -1,8 +1,11 @@
+from __future__ import annotations
+
 import io
 import sys
 from pathlib import Path
 
 import sgs
+from hyfetch.color_util import RGB
 
 sys.path.append(str(Path(__file__).parent))
 sys.path.append(str(Path(__file__).parent.parent))
@@ -98,21 +101,31 @@ def draw_mspect_image(spec: ndarray, gradient: ndarray) -> ndarray:
 
 
 @njit(cache=True)
-def hz_to_mel(hz: float) -> float:
+def hz_to_mel(hz: float | ndarray) -> float:
     return 2595 * np.log10(1 + hz / 700)
 
 
+@njit(cache=True)
 def draw_spect_line(img: ndarray, line: ndarray, color: ndarray):
-    w, h, _ = img.shape
+    h, w, _ = img.shape
     x_len = len(line) / w
 
     # Mel mapping
     max_mel = hz_to_mel(8000)
-    line = [h - hz_to_mel(x) / max_mel * h for x in line]
+    line = h - hz_to_mel(line) / max_mel * h
 
     for x in range(w):
-        window_mean = np.mean(line[int(x_len * x): np.ceil(x_len * (x + 1))])
-        img[window_mean, x, :] = color
+        start = int(x_len * x)
+        end = int(np.ceil(x_len * (x + 1)))
+        window_mean = np.nanmean(line[start:end])
+
+        if np.isnan(window_mean):
+            continue
+
+        # Fill 3x3 in + shape
+        for dx in [-1, 0, 1]:
+            img[int(window_mean) + dx, x, :] = color
+            img[int(window_mean), x + dx, :] = color
 
 
 def draw_mspect(spec: ndarray, freq_array: ndarray, sr: int):
@@ -123,8 +136,14 @@ def draw_mspect(spec: ndarray, freq_array: ndarray, sr: int):
 
     spec = np.log10(spec + 0.1)
     img = draw_mspect_image(spec, gradient)
-
     timer.log('Done drawing')
+
+    draw_spect_line(img, freq_array[:, 0], np.array(RGB.from_hex('#64fbff')))
+    draw_spect_line(img, freq_array[:, 1], np.array(RGB.from_hex('#7bff4f')))
+    draw_spect_line(img, freq_array[:, 2], np.array(RGB.from_hex('#93ffb9')))
+    draw_spect_line(img, freq_array[:, 3], np.array(RGB.from_hex('#4ffff9')))
+
+    timer.log('Done drawing line')
 
     # Create image
     my_img = PIL.Image.fromarray(img)
