@@ -1,5 +1,6 @@
 import io
 import os
+import sys
 import warnings
 from dataclasses import dataclass
 from datetime import datetime
@@ -16,6 +17,9 @@ from inaSpeechSegmenter.sidekit_mfcc import read_wav
 from telegram import Update, Message, Bot
 from telegram.ext import Updater, CallbackContext, Dispatcher, CommandHandler, MessageHandler, \
     Filters
+
+sys.path.append(str(Path(__file__).parent))
+sys.path.append(str(Path(__file__).parent.parent))
 
 from bot import utils
 from bot.render import draw_ml, draw_mspect
