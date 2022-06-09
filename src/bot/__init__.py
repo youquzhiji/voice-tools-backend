@@ -1,20 +1,24 @@
-
+import io
 import os
 import warnings
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import NamedTuple
 
 import matplotlib
+import parselmouth
+import sgs
+import tensorflow_io as tfio
 from inaSpeechSegmenter import Segmenter
 from inaSpeechSegmenter.constants import ResultFrame
-from telegram import Update, Message
+from inaSpeechSegmenter.features import to_wav
+from inaSpeechSegmenter.sidekit_mfcc import read_wav
+from telegram import Update, Message, Bot
 from telegram.ext import Updater, CallbackContext, Dispatcher, CommandHandler, MessageHandler, \
     Filters
 
 from bot import utils
-from bot.render import draw_ml
+from bot.render import draw_ml, draw_mspect
 
 
 @dataclass
@@ -64,12 +68,31 @@ def cmd_ml(file: Path, msg: Message):
     # Draw results
     with draw_ml(str(file), result) as buf:
         f, m, o, pf = get_result_percentages(result)
-        send = f"分析结果: {f*100:.0f}% 🙋‍♀️ | {m*100:.0f}% 🙋‍♂️ | {o*100:.0f}% 🚫\n" \
-               f"(结果仅供参考, 如果结果不是你想要的，那就是模型的问题，欢迎反馈)\n" \
-               f"" \
-               f"(因为这个模型基于法语数据, 和中文发音习惯有差异, 所以这个识别结果可能不准)"
+        send = f"CNN 模型分析结果: {f*100:.0f}% 🙋‍♀️ | {m*100:.0f}% 🙋‍♂️ | {o*100:.0f}% 🚫\n" \
+               f"(结果仅供参考, 如果结果不是你想要的，那就是模型的问题，欢迎反馈)\n"
         bot.send_photo(msg.chat_id, photo=buf, caption=send,
                        reply_to_message_id=msg.message_id)
+
+
+def cmd_spect(file: Path, msg: Message):
+    # Read file
+    wav_full = to_wav(file, sr=None)
+    y, sr, _ = read_wav(wav_full)
+    sound = parselmouth.Sound(y, sr)
+
+    t = tfio.audio.spectrogram(y, 2048, 2048, 256)
+    mel_spectrogram = tfio.audio.melscale(t, rate=sr, mels=128, fmin=0, fmax=8000)
+
+    result, freq_array = sgs.api.calculate_feature_classification(sound)
+
+    mspec = draw_mspect(mel_spectrogram, freq_array, sr)
+    buf = io.BytesIO()
+    mspec.save(buf, 'JPEG')
+    buf.seek(0)
+
+    send = f'显示基频和共振峰的频谱图\n' \
+           f'（目前用了 Praat 算法，希望以后能改成 DeepFormants）'
+    bot.send_document(msg.chat_id, document=buf, filename='spectrogram.jpg', caption=send)
 
 
 def process_audio(cmd: str, msg: Message):
@@ -88,8 +111,8 @@ def process_audio(cmd: str, msg: Message):
 
     if flags.ml:
         cmd_ml(file, msg)
-    # if flags.spect:
-    #     raise AssertionError('Spect 功能还没有实现')
+    if flags.spect:
+        cmd_spect(file, msg)
     # if flags.stats:
     #     raise AssertionError('Stats 功能还没有实现')
 
@@ -180,7 +203,7 @@ if __name__ == '__main__':
     # Telegram login
     updater = Updater(token=tg_token, use_context=True)
     dispatcher: Dispatcher = updater.dispatcher
-    bot = updater.bot
+    bot: Bot = updater.bot
 
     dispatcher.add_handler(CommandHandler('start', cmd_start, filters=Filters.chat_type.private))
     dispatcher.add_handler(CommandHandler('analyze', cmd_reply, filters=Filters.reply))

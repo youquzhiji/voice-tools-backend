@@ -7,9 +7,6 @@ from pathlib import Path
 import sgs
 from hyfetch.color_util import RGB
 
-sys.path.append(str(Path(__file__).parent))
-sys.path.append(str(Path(__file__).parent.parent))
-
 import PIL.Image
 import matplotlib.pyplot as plt
 import numpy as np
