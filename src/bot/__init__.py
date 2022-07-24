@@ -5,18 +5,12 @@ import warnings
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from threading import Thread
 
 import matplotlib
 import numpy as np
-import parselmouth
-import sgs
-import tensorflow_io as tfio
-import uvicorn
+import telegram
 from inaSpeechSegmenter import Segmenter
 from inaSpeechSegmenter.constants import ResultFrame
-from inaSpeechSegmenter.features import to_wav
-from inaSpeechSegmenter.sidekit_mfcc import read_wav
 from telegram import Update, Message, Bot
 from telegram.ext import Updater, CallbackContext, Dispatcher, CommandHandler, MessageHandler, \
     Filters
@@ -94,8 +88,9 @@ def process_audio(cmd: str, msg: Message):
 
     # Download audio file
     date = datetime.now().strftime('%Y-%m-%d %H-%M')
-    downloader = bot.getFile(audio.file_id)
-    file = Path(tmpdir).joinpath(f'{date} {msg.from_user.name[1:]}.mp3')
+    downloader: telegram.File = bot.get_file(audio.file_id)
+    ext = downloader.file_path.split('.')[-1]
+    file = Path(tmpdir).joinpath(f'{date} {msg.from_user.name[1:]}.{ext}')
     print(downloader, '->', file)
     downloader.download(file)
 
