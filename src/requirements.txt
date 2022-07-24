@@ -1,17 +1,17 @@
-fastapi==0.75.0
-uvicorn==0.17.6
-python-multipart==0.0.5
+fastapi~=0.75.0
+uvicorn~=0.17.6
+python-multipart~=0.0.5
 
-websockets==10.2
+websockets~=10.2
 
-tortoise-orm[aiomysql]==0.18.1
-aiomysql==0.0.22
+tortoise-orm[aiomysql]~=0.18.1
+aiomysql~=0.0.22
 
-py-cpuinfo==8.0.0
+py-cpuinfo~=8.0.0
 
 # Audio processing
-ina-segmenter-modified==1.0.6
-speech-gender-statistics==1.0.9
+ina-segmenter-modified~=1.0.6
+speech-gender-statistics~=1.0.9
 aiofiles
 hypy_utils
 
