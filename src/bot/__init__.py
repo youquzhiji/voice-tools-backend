@@ -105,8 +105,6 @@ def process_audio(cmd: str, msg: Message):
         send_ml(file, [ResultFrame(*s) for s in results.ml], msg)
     if flags.spect:
         send_spect(results.mel_spectrogram, results.freq_array, results.sr, msg)
-    # if flags.stats:
-    #     raise AssertionError('Stats 功能还没有实现')
 
 
 def cmd_reply(u: Update, c: CallbackContext):
@@ -208,7 +206,3 @@ if __name__ == '__main__':
 
     print('Bot started.')
     updater.start_polling()
-
-    # Start web server with reloading
-    # Thread(target=updater.start_polling).start()
-    # uvicorn.run("bot.web:app", port=48257, host="127.0.0.1", reload=True)
