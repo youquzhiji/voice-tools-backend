@@ -92,7 +92,7 @@ def process_audio(cmd: str, msg: Message):
     ext = downloader.file_path.split('.')[-1]
     file = Path(tmpdir).joinpath(f'{date} {msg.from_user.name[1:]}.{ext}')
     print(downloader, '->', file)
-    downloader.download(file)
+    downloader.download(str(file))
 
     # Command flags
     flags = AnalyzeComponents.from_command(cmd)
