@@ -1,6 +1,4 @@
-import datetime
-from multiprocessing import Process
-from pathlib import Path
+from threading import Thread
 
 import uvicorn
 from fastapi import FastAPI, UploadFile
@@ -9,7 +7,6 @@ from hypy_utils import Timer
 from starlette.requests import Request
 
 from tasks import compute_audio
-
 
 app = FastAPI()
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True)
@@ -27,10 +24,10 @@ def start():
     uvicorn.run(app, port=48257, host="127.0.0.1")
 
 
-def start_async() -> Process:
-    p = Process(target=start)
-    p.start()
-    return p
+def start_async() -> Thread:
+    t = Thread(target=start)
+    t.start()
+    return t
 
 
 if __name__ == '__main__':
