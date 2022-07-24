@@ -66,6 +66,8 @@ def cmd_start(u: Update, c: CallbackContext):
 
 
 def send_ml(file: Path, segment: list[ResultFrame], msg: Message):
+    assert len(segment), '分析失败, 大概是音量太小或者时长太短吧, 再试试w'
+
     # Draw results
     with draw_ml(str(file), segment) as buf:
         f, m, o, pf = get_result_percentages(segment)
@@ -73,20 +75,6 @@ def send_ml(file: Path, segment: list[ResultFrame], msg: Message):
                f"(结果仅供参考, 如果结果不是你想要的，那就是模型的问题，欢迎反馈)\n"
         bot.send_photo(msg.chat_id, photo=buf, caption=send,
                        reply_to_message_id=msg.message_id)
-
-
-def cmd_ml(file: Path, msg: Message):
-    # Segment file
-    try:
-        result = [ResultFrame(*s) for s in seg(file)]
-    except KeyError as e:
-        raise AssertionError('分析失败, 大概是音量太小或者时长太短吧, 再试试w')
-
-    # Null case
-    print(result)
-    assert len(result), '分析失败, 大概是音量太小或者时长太短吧, 再试试w'
-
-    send_ml(file, result, msg)
 
 
 def send_spect(mel_spectrogram: np.ndarray, freq_array: np.ndarray, sr: int, msg: Message):
@@ -98,23 +86,6 @@ def send_spect(mel_spectrogram: np.ndarray, freq_array: np.ndarray, sr: int, msg
     send = f'显示基频和共振峰的频谱图\n' \
            f'（目前用了 Praat 算法，希望以后能改成 DeepFormants）'
     bot.send_document(msg.chat_id, document=buf, filename='spectrogram.jpg', caption=send)
-
-
-def cmd_spect(file: Path, msg: Message):
-    # Read file
-    wav_full = to_wav(file, sr=None)
-    y, sr, _ = read_wav(wav_full)
-    sound = parselmouth.Sound(y, sr)
-
-    # Compute spectrogram
-    t = tfio.audio.spectrogram(y, 2048, 2048, 256)
-    mel_spectrogram = tfio.audio.melscale(t, rate=sr, mels=128, fmin=0, fmax=8000)
-
-    # Compute frequency array
-    result, freq_array = sgs.api.calculate_feature_classification(sound)
-
-    # Send spectrogram result
-    send_spect(mel_spectrogram, freq_array, sr, msg)
 
 
 def process_audio(cmd: str, msg: Message):
