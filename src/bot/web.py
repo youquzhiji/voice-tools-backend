@@ -1,5 +1,9 @@
+from __future__ import annotations
+
 import json
+from pathlib import Path
 from threading import Thread
+from uuid import uuid4
 
 import psutil as psutil
 import uvicorn
@@ -11,6 +15,9 @@ from starlette.requests import Request
 from bot import consts
 from bot.utils import PrettyJSONResponse
 from tasks import compute_audio
+
+
+SAVED_RESULTS_PATH = Path('audio_results')
 
 app = FastAPI()
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True)
@@ -34,6 +41,33 @@ async def process(file: UploadFile, req: Request, with_mel_spect: bool = False):
     timer.log(f'User request received from {req.client.host}')
 
     return compute_audio(await file.read(), file.filename, with_mel_spect)
+
+
+@app.get('/results')
+async def get_process_results(uuid: str) -> dict | None:
+    """
+    Get results from a previously saved UUID.
+
+    :param uuid:
+    :return: Results dict or None if not found
+    """
+    path = (SAVED_RESULTS_PATH / f'{uuid}.json')
+    if not path.is_file():
+        return None
+    return json.loads(path.read_text('utf-8'))
+
+
+async def save_process_results(results: dict) -> str:
+    """
+    Save results and return a UUID for getting results later.
+
+    :param results: Results
+    :return: UUID
+    """
+    # TODO: Use redis / mysql
+    uuid = str(uuid4())
+    (SAVED_RESULTS_PATH / f'{uuid}.json').write_text(json.dumps(results), 'utf-8')
+    return uuid
 
 
 def start():
