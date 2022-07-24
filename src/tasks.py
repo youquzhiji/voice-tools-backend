@@ -1,6 +1,7 @@
 import base64
 import datetime
 from pathlib import Path
+from typing import NamedTuple
 
 import numpy as np
 import parselmouth
@@ -27,13 +28,18 @@ def b64(nd: np.ndarray) -> dict[str, any]:
     return {'bytes': base64.b64encode(nd.tobytes()).decode(), 'shape': nd.shape}
 
 
-def compute_audio(file: bytes, file_name: str, with_mel_spect: bool):
+class RawComputeResults(NamedTuple):
+    freq_array: np.ndarray
+    ml: list
+    mel_spectrogram: np.ndarray
+
+
+def compute_audio_raw(file: bytes, file_name: str) -> tuple[dict, RawComputeResults]:
     """
     Compute user request
 
     :param file: Local file
     :param file_name: File name
-    :param with_mel_spect: Whether to compute mel spectrogram
     :return: Computation result
     """
     timer = Timer()
@@ -73,13 +79,15 @@ def compute_audio(file: bytes, file_name: str, with_mel_spect: bool):
         ml = []
         timer.log(f'ML Segment Failed - KeyError: {e}')
 
-    data = {'result': result, 'ml': ml, 'freq_array': b64(freq_array.T)}
+    # Calculate mel spectrogram
+    t = tfio.audio.spectrogram(y, 2048, 2048, 512)
+    mel_spectrogram = tfio.audio.melscale(t, rate=sr, mels=128, fmin=0, fmax=8000)
 
-    # Calculate mel spectrogram (if needed)
-    if with_mel_spect:
-        t = tfio.audio.spectrogram(y, 2048, 2048, 512)
-        mel_spectrogram = tfio.audio.melscale(t, rate=sr, mels=128, fmin=0, fmax=8000)
-        data['spec'] = b64(mel_spectrogram.numpy())
-        data['spec_sr'] = sr
+    data = {'result': result, 'ml': ml, 'freq_array': b64(freq_array.T),
+            'spec': b64(mel_spectrogram.numpy()), 'spec_sr': sr}
 
-    return data
+    return data, RawComputeResults(freq_array, ml, mel_spectrogram)
+
+
+def compute_audio(file: bytes, file_name: str) -> dict:
+    return compute_audio_raw(file, file_name)[0]

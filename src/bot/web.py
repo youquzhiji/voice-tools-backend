@@ -36,11 +36,11 @@ async def status():
 
 
 @app.post('/process')
-async def process(file: UploadFile, req: Request, with_mel_spect: bool = False):
+async def process(file: UploadFile, req: Request):
     timer = Timer()
     timer.log(f'User request received from {req.client.host}')
 
-    return compute_audio(await file.read(), file.filename, with_mel_spect)
+    return compute_audio(await file.read(), file.filename)
 
 
 @app.get('/results')
