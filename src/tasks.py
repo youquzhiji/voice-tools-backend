@@ -32,28 +32,32 @@ class RawComputeResults(NamedTuple):
     freq_array: np.ndarray
     ml: list
     mel_spectrogram: np.ndarray
+    sr: int
 
 
-def compute_audio_raw(file: bytes, file_name: str) -> tuple[dict, RawComputeResults]:
+def write_file(file: bytes, file_name: str) -> Path:
+    """
+    Write bytes
+    """
+    tmp_file = Path(datetime.datetime.now().strftime(f'%Y-%m-%d %H-%M-%S {Path(file_name).suffix}'))
+    tmp_file = Path(f'audio_tmp/{tmp_file}')
+    tmp_file.parent.mkdir(parents=True, exist_ok=True)
+    tmp_file.write_bytes(file)
+
+    return tmp_file
+
+
+def compute_audio_raw(file: Path) -> tuple[dict, RawComputeResults]:
     """
     Compute user request
 
-    :param file: Local file
-    :param file_name: File name
+    :param file: Audio file
     :return: Computation result
     """
     timer = Timer()
 
-    tmp_file = Path(datetime.datetime.now().strftime(f'%Y-%m-%d %H-%M-%S {Path(file_name).suffix}'))
-    tmp_file = Path(f'temp/{tmp_file}')
-    tmp_file.parent.mkdir(parents=True, exist_ok=True)
-    tmp_file.write_bytes(file)
-
-    # Download file to a temporary location
-    timer.log('Downloaded.')
-
     # Read file
-    wav_full = to_wav(tmp_file, sr=None)
+    wav_full = to_wav(file, sr=None)
     y, sr, _ = read_wav(wav_full)
     sound = parselmouth.Sound(y, sr)
     timer.log('File read.')
@@ -86,8 +90,8 @@ def compute_audio_raw(file: bytes, file_name: str) -> tuple[dict, RawComputeResu
     data = {'result': result, 'ml': ml, 'freq_array': b64(freq_array.T),
             'spec': b64(mel_spectrogram.numpy()), 'spec_sr': sr}
 
-    return data, RawComputeResults(freq_array, ml, mel_spectrogram)
+    return data, RawComputeResults(freq_array, ml, mel_spectrogram, sr)
 
 
 def compute_audio(file: bytes, file_name: str) -> dict:
-    return compute_audio_raw(file, file_name)[0]
+    return compute_audio_raw(write_file(file, file_name))[0]

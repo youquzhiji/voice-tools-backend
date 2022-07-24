@@ -21,6 +21,9 @@ from telegram import Update, Message, Bot
 from telegram.ext import Updater, CallbackContext, Dispatcher, CommandHandler, MessageHandler, \
     Filters
 
+from bot.web import save_process_results
+from tasks import compute_audio_raw
+
 sys.path.append(str(Path(__file__).parent))
 sys.path.append(str(Path(__file__).parent.parent))
 
@@ -36,14 +39,16 @@ class AnalyzeComponents:
     ml: bool
     spect: bool
     stats: bool
+    full: bool
 
     @classmethod
     def from_command(cls, cmd: str) -> "AnalyzeComponents":
-        out = cls(False, False, False)
+        out = cls(False, False, False, False)
 
         cmd = cmd.lower().strip()
         full = cmd == 'analyze'
 
+        out.full = full
         out.ml = full or cmd in ['ml']
         out.spect = full or cmd in ['spectrogram', 'formant', 'pitch']
         out.stats = full or cmd in ['stats']
@@ -84,7 +89,7 @@ def cmd_ml(file: Path, msg: Message):
     send_ml(file, result, msg)
 
 
-def send_spect(mel_spectrogram: np.ndarray, freq_array: np.ndarray, sr: int, chat: int):
+def send_spect(mel_spectrogram: np.ndarray, freq_array: np.ndarray, sr: int, msg: Message):
     mspec = draw_mspect(mel_spectrogram, freq_array, sr)
     buf = io.BytesIO()
     mspec.save(buf, 'JPEG')
@@ -92,7 +97,7 @@ def send_spect(mel_spectrogram: np.ndarray, freq_array: np.ndarray, sr: int, cha
 
     send = f'显示基频和共振峰的频谱图\n' \
            f'（目前用了 Praat 算法，希望以后能改成 DeepFormants）'
-    bot.send_document(chat, document=buf, filename='spectrogram.jpg', caption=send)
+    bot.send_document(msg.chat_id, document=buf, filename='spectrogram.jpg', caption=send)
 
 
 def cmd_spect(file: Path, msg: Message):
@@ -109,7 +114,7 @@ def cmd_spect(file: Path, msg: Message):
     result, freq_array = sgs.api.calculate_feature_classification(sound)
 
     # Send spectrogram result
-    send_spect(mel_spectrogram, freq_array, sr, msg.chat_id)
+    send_spect(mel_spectrogram, freq_array, sr, msg)
 
 
 def process_audio(cmd: str, msg: Message):
@@ -126,10 +131,14 @@ def process_audio(cmd: str, msg: Message):
     # Command flags
     flags = AnalyzeComponents.from_command(cmd)
 
+    # Compute
+    web_results, results = compute_audio_raw(file)
+    save_process_results(web_results)
+
     if flags.ml:
-        cmd_ml(file, msg)
+        send_ml(file, [ResultFrame(*s) for s in results.ml], msg)
     if flags.spect:
-        cmd_spect(file, msg)
+        send_spect(results.mel_spectrogram, results.freq_array, results.sr, msg)
     # if flags.stats:
     #     raise AssertionError('Stats 功能还没有实现')
 
