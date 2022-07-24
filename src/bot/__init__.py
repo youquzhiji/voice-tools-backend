@@ -21,7 +21,7 @@ from telegram.ext import Updater, CallbackContext, Dispatcher, CommandHandler, M
 sys.path.append(str(Path(__file__).parent))
 sys.path.append(str(Path(__file__).parent.parent))
 
-from bot import utils
+from bot import utils, web
 from bot.render import draw_ml, draw_mspect
 
 
@@ -204,7 +204,10 @@ if __name__ == '__main__':
     else:
         tg_token = Path('voice-bot-token.txt').read_text('utf-8').strip()
 
-    # Telegram login
+    # Start web server
+    web.start()
+
+    # Start bot
     updater = Updater(token=tg_token, use_context=True)
     dispatcher: Dispatcher = updater.dispatcher
     bot: Bot = updater.bot

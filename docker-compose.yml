@@ -48,10 +48,10 @@ services:
               count: 1
               capabilities: [gpu]
 
-  vt-single:
-    container_name: vt-single
+  vt-bot:
+    container_name: vt-bot
     build: ./src
-    command: uvicorn test_backend:app --host 0.0.0.0 --port 8019 --reload
+    command: python3 bot/__init__.py
     volumes:
       - ./src:/usr/src/app
     deploy:
@@ -61,4 +61,4 @@ services:
             - driver: nvidia
               count: 1
               capabilities: [gpu]
-    image: hykilpikonna/vt-single-backend:1.0.0
+    image: hykilpikonna/vt-bot:1.0.0
