@@ -8,6 +8,7 @@ from pathlib import Path
 from threading import Thread
 
 import matplotlib
+import numpy as np
 import parselmouth
 import sgs
 import tensorflow_io as tfio
@@ -59,6 +60,16 @@ def cmd_start(u: Update, c: CallbackContext):
     r(u, '欢迎! 点下面的录音按钮就可以开始啦w')
 
 
+def send_ml(file: Path, segment: list[ResultFrame], msg: Message):
+    # Draw results
+    with draw_ml(str(file), segment) as buf:
+        f, m, o, pf = get_result_percentages(segment)
+        send = f"CNN 模型分析结果: {f*100:.0f}% 🙋‍♀️ | {m*100:.0f}% 🙋‍♂️ | {o*100:.0f}% 🚫\n" \
+               f"(结果仅供参考, 如果结果不是你想要的，那就是模型的问题，欢迎反馈)\n"
+        bot.send_photo(msg.chat_id, photo=buf, caption=send,
+                       reply_to_message_id=msg.message_id)
+
+
 def cmd_ml(file: Path, msg: Message):
     # Segment file
     try:
@@ -70,13 +81,18 @@ def cmd_ml(file: Path, msg: Message):
     print(result)
     assert len(result), '分析失败, 大概是音量太小或者时长太短吧, 再试试w'
 
-    # Draw results
-    with draw_ml(str(file), result) as buf:
-        f, m, o, pf = get_result_percentages(result)
-        send = f"CNN 模型分析结果: {f*100:.0f}% 🙋‍♀️ | {m*100:.0f}% 🙋‍♂️ | {o*100:.0f}% 🚫\n" \
-               f"(结果仅供参考, 如果结果不是你想要的，那就是模型的问题，欢迎反馈)\n"
-        bot.send_photo(msg.chat_id, photo=buf, caption=send,
-                       reply_to_message_id=msg.message_id)
+    send_ml(file, result, msg)
+
+
+def send_spect(mel_spectrogram: np.ndarray, freq_array: np.ndarray, sr: int, chat: int):
+    mspec = draw_mspect(mel_spectrogram, freq_array, sr)
+    buf = io.BytesIO()
+    mspec.save(buf, 'JPEG')
+    buf.seek(0)
+
+    send = f'显示基频和共振峰的频谱图\n' \
+           f'（目前用了 Praat 算法，希望以后能改成 DeepFormants）'
+    bot.send_document(chat, document=buf, filename='spectrogram.jpg', caption=send)
 
 
 def cmd_spect(file: Path, msg: Message):
@@ -85,19 +101,15 @@ def cmd_spect(file: Path, msg: Message):
     y, sr, _ = read_wav(wav_full)
     sound = parselmouth.Sound(y, sr)
 
+    # Compute spectrogram
     t = tfio.audio.spectrogram(y, 2048, 2048, 256)
     mel_spectrogram = tfio.audio.melscale(t, rate=sr, mels=128, fmin=0, fmax=8000)
 
+    # Compute frequency array
     result, freq_array = sgs.api.calculate_feature_classification(sound)
 
-    mspec = draw_mspect(mel_spectrogram, freq_array, sr)
-    buf = io.BytesIO()
-    mspec.save(buf, 'JPEG')
-    buf.seek(0)
-
-    send = f'显示基频和共振峰的频谱图\n' \
-           f'（目前用了 Praat 算法，希望以后能改成 DeepFormants）'
-    bot.send_document(msg.chat_id, document=buf, filename='spectrogram.jpg', caption=send)
+    # Send spectrogram result
+    send_spect(mel_spectrogram, freq_array, sr, msg.chat_id)
 
 
 def process_audio(cmd: str, msg: Message):
