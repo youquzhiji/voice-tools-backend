@@ -18,6 +18,7 @@ from tasks import compute_audio
 
 
 SAVED_RESULTS_PATH = Path('audio_results')
+SAVED_RESULTS_PATH.mkdir(exist_ok=True, parents=True)
 
 app = FastAPI()
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True)
@@ -57,7 +58,7 @@ async def get_process_results(uuid: str) -> dict | None:
     return json.loads(path.read_text('utf-8'))
 
 
-async def save_process_results(results: dict) -> str:
+def save_process_results(results: dict) -> str:
     """
     Save results and return a UUID for getting results later.
 

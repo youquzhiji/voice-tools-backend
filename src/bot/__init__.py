@@ -11,7 +11,7 @@ import numpy as np
 import telegram
 from inaSpeechSegmenter import Segmenter
 from inaSpeechSegmenter.constants import ResultFrame
-from telegram import Update, Message, Bot
+from telegram import Update, Message, Bot, ParseMode
 from telegram.ext import Updater, CallbackContext, Dispatcher, CommandHandler, MessageHandler, \
     Filters
 
@@ -59,16 +59,17 @@ def cmd_start(u: Update, c: CallbackContext):
     r(u, '欢迎! 点下面的录音按钮就可以开始啦w')
 
 
-def send_ml(file: Path, segment: list[ResultFrame], msg: Message):
+def send_ml(file: Path, segment: list[ResultFrame], uuid: str, msg: Message):
     assert len(segment), '分析失败, 大概是音量太小或者时长太短吧, 再试试w'
 
     # Draw results
     with draw_ml(str(file), segment) as buf:
         f, m, o, pf = get_result_percentages(segment)
         send = f"CNN 模型分析结果: {f*100:.0f}% 🙋‍♀️ | {m*100:.0f}% 🙋‍♂️ | {o*100:.0f}% 🚫\n" \
-               f"(结果仅供参考, 如果结果不是你想要的，那就是模型的问题，欢迎反馈)\n"
+               f"(结果仅供参考, 如果结果不是你想要的，那就是模型的问题，欢迎反馈)\n" \
+               f"\n<a href='https://alpha.voice.hydev.org/view?id={uuid}'>[查看完整分析结果]</a>\n"
         bot.send_photo(msg.chat_id, photo=buf, caption=send,
-                       reply_to_message_id=msg.message_id)
+                       reply_to_message_id=msg.message_id, parse_mode=ParseMode.HTML)
 
 
 def send_spect(mel_spectrogram: np.ndarray, freq_array: np.ndarray, sr: int, msg: Message):
@@ -99,10 +100,10 @@ def process_audio(cmd: str, msg: Message):
 
     # Compute
     web_results, results = compute_audio_raw(file)
-    save_process_results(web_results)
+    uuid = save_process_results(web_results)
 
     if flags.ml:
-        send_ml(file, [ResultFrame(*s) for s in results.ml], msg)
+        send_ml(file, [ResultFrame(*s) for s in results.ml], uuid, msg)
     if flags.spect:
         send_spect(results.mel_spectrogram, results.freq_array, results.sr, msg)
 
