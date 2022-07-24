@@ -67,7 +67,8 @@ def draw_ml(file: str, result: list[ResultFrame]) -> io.BytesIO:
         plt.close()
         return buf
 
-    return to_wav(file, tmp_callback=wav_callback)
+    wav_path = to_wav(file)
+    return wav_callback(wav_path)
 
 
 @njit(cache=True)
