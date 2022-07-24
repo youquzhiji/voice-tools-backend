@@ -1,4 +1,5 @@
 import datetime
+from multiprocessing import Process
 from pathlib import Path
 
 import uvicorn
@@ -23,7 +24,13 @@ async def process(file: UploadFile, req: Request, with_mel_spect: bool = False):
 
 
 def start():
-    uvicorn.run(app, port=48257)
+    uvicorn.run(app, port=48257, host="127.0.0.1")
+
+
+def start_async() -> Process:
+    p = Process(target=start)
+    p.start()
+    return p
 
 
 if __name__ == '__main__':

@@ -205,7 +205,7 @@ if __name__ == '__main__':
         tg_token = Path('voice-bot-token.txt').read_text('utf-8').strip()
 
     # Start web server
-    web.start()
+    web_process = web.start_async()
 
     # Start bot
     updater = Updater(token=tg_token, use_context=True)
