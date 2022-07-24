@@ -50,10 +50,6 @@ class AnalyzeComponents:
         return out
 
 
-def segment(file) -> list[ResultFrame]:
-    return [ResultFrame(*s) for s in seg(file)]
-
-
 def r(u: Update, msg: str, md=True):
     updater.bot.sendMessage(chat_id=u.effective_chat.id, text=msg,
                             parse_mode='Markdown' if md else None)
@@ -65,7 +61,10 @@ def cmd_start(u: Update, c: CallbackContext):
 
 def cmd_ml(file: Path, msg: Message):
     # Segment file
-    result = segment(file)
+    try:
+        result = [ResultFrame(*s) for s in seg(file)]
+    except KeyError as e:
+        raise AssertionError('分析失败, 大概是音量太小或者时长太短吧, 再试试w')
 
     # Null case
     print(result)
