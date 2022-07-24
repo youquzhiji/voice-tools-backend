@@ -5,11 +5,13 @@ import warnings
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
+from threading import Thread
 
 import matplotlib
 import parselmouth
 import sgs
 import tensorflow_io as tfio
+import uvicorn
 from inaSpeechSegmenter import Segmenter
 from inaSpeechSegmenter.constants import ResultFrame
 from inaSpeechSegmenter.features import to_wav
@@ -220,3 +222,7 @@ if __name__ == '__main__':
 
     print('Bot started.')
     updater.start_polling()
+
+    # Start web server with reloading
+    # Thread(target=updater.start_polling).start()
+    # uvicorn.run("bot.web:app", port=48257, host="127.0.0.1", reload=True)

@@ -20,3 +20,6 @@ hyfetch>=1.0.7
 matplotlib
 tensorflow-io
 python-telegram-bot
+
+# System status monitor
+psutil~=5.9.1
