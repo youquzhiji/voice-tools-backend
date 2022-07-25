@@ -1,6 +1,12 @@
 from __future__ import annotations
 
+from os import cpu_count
+
 import numpy as np
+from zstd import ZSTD_compress, ZSTD_uncompress
+
+
+CPU_COUNT = cpu_count()
 
 
 def bdict_encode(d: dict[str, bytes | str]) -> bytes:
@@ -40,7 +46,7 @@ def bdict_encode(d: dict[str, bytes | str]) -> bytes:
         b[i: i + lv] = v
         i += lv
 
-    return bytes(b)
+    return ZSTD_compress(bytes(b), 19, CPU_COUNT)
 
 
 def bdict_decode(b: bytes) -> dict[str, bytes]:
@@ -50,6 +56,7 @@ def bdict_decode(b: bytes) -> dict[str, bytes]:
     :param b:
     :return:
     """
+    b = ZSTD_uncompress(b)
     i = 0
     dic = {}
 
@@ -70,7 +77,7 @@ def bdict_decode(b: bytes) -> dict[str, bytes]:
 
 
 if __name__ == '__main__':
-    d = {'meow': 'hi', 'bytes': np.array([1, 2, 3, 4, 5]).tobytes()}
+    d = {'meow': 'hi', 'bytes': np.array([1, 2, 3, 4, 5] * 10).tobytes()}
     print(d)
     print(bdict_encode(d))
     print(bdict_decode(bdict_encode(d)))
