@@ -37,7 +37,7 @@ async def status():
 
 
 @app.post('/process')
-async def process(file: UploadFile, req: Request) -> str:
+async def process(file: UploadFile, req: Request) -> dict:
     """
     Process audio and return result UUID.
     """
@@ -48,7 +48,7 @@ async def process(file: UploadFile, req: Request) -> str:
     results = compute_audio_raw(file)
     uuid = save_process_results(results)
 
-    return uuid
+    return {'uuid': uuid}
 
 
 @app.get('/results')
