@@ -116,8 +116,8 @@ def process_audio(cmd: str, msg: Message):
     flags = AnalyzeComponents.from_command(cmd)
 
     # Compute
-    web_results, results = compute_audio_raw(file)
-    uuid = save_process_results(web_results)
+    results = compute_audio_raw(file)
+    uuid = save_process_results(results)
 
     if flags.ml:
         send_ml(file, [ResultFrame(*s) for s in results.ml], uuid, msg)

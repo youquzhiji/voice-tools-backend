@@ -14,8 +14,7 @@ from starlette.requests import Request
 
 from bot import consts
 from bot.utils import PrettyJSONResponse
-from tasks import compute_audio
-
+from tasks import compute_audio, RawComputeResults
 
 SAVED_RESULTS_PATH = Path('audio_results')
 SAVED_RESULTS_PATH.mkdir(exist_ok=True, parents=True)
@@ -58,7 +57,7 @@ async def get_process_results(uuid: str) -> dict | None:
     return json.loads(path.read_text('utf-8'))
 
 
-def save_process_results(results: dict) -> str:
+def save_process_results(results: RawComputeResults) -> str:
     """
     Save results and return a UUID for getting results later.
 
@@ -67,7 +66,8 @@ def save_process_results(results: dict) -> str:
     """
     # TODO: Use redis / mysql
     uuid = str(uuid4())
-    (SAVED_RESULTS_PATH / f'{uuid}.json').write_text(json.dumps(results), 'utf-8')
+    (SAVED_RESULTS_PATH / f'{uuid}.json').write_text(json.dumps(results.to_json_dict()), 'utf-8')
+    (SAVED_RESULTS_PATH / f'{uuid}.bdct').write_bytes(results.to_bdict())
     return uuid
 
 
