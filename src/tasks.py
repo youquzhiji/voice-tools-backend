@@ -37,6 +37,7 @@ class RawComputeResults(NamedTuple):
     ml: list
     mel_spectrogram: np.ndarray
     sr: int
+    audio_dur: float
 
     def to_json_dict(self) -> dict:
         return {'result': self.result, 'ml': self.ml, 'freq_array': b64(self.freq_array.T),
@@ -44,7 +45,7 @@ class RawComputeResults(NamedTuple):
 
     def to_bdict(self) -> bytes:
         j = {'result': self.result, 'ml': self.ml, 'spec_sr': self.sr,
-             'spec_rows': self.mel_spectrogram.shape[0]}
+             'spec_rows': self.mel_spectrogram.shape[0], 'audio_dur': self.audio_dur}
         bd = {'freq_array': self.freq_array.T.tobytes(), 'spec': self.mel_spectrogram.tobytes(),
               'json': json.dumps(j)}
         return bdict_encode(bd)
@@ -102,7 +103,7 @@ def compute_audio_raw(file: Path) -> RawComputeResults:
     t = tfio.audio.spectrogram(y, 2048, 2048, 512)
     mel_spectrogram = tfio.audio.melscale(t, rate=sr, mels=128, fmin=0, fmax=8000).numpy()
 
-    return RawComputeResults(result, freq_array, ml, mel_spectrogram, sr)
+    return RawComputeResults(result, freq_array, ml, mel_spectrogram, sr, sound.duration)
 
 
 def compute_audio(file: bytes, file_name: str) -> dict:
