@@ -1,16 +1,14 @@
 fastapi~=0.75.0
-uvicorn~=0.17.6
+uvicorn~=0.18.2
 python-multipart~=0.0.5
 
-websockets~=10.2
+websockets~=10.3
 
-tortoise-orm[aiomysql]~=0.18.1
-aiomysql~=0.0.22
-
-py-cpuinfo~=8.0.0
+tortoise-orm[aiomysql]~=0.19.2
+aiomysql~=0.1.1
 
 # Audio processing
-ina-segmenter-modified~=1.0.6
+ina-segmenter-modified~=1.0.7
 speech-gender-statistics~=1.0.9
 aiofiles
 hypy_utils
@@ -21,5 +19,9 @@ matplotlib
 tensorflow-io
 python-telegram-bot
 
+# Data compression
+zstd~=1.5.2.5
+
 # System status monitor
+py-cpuinfo~=8.0.0
 psutil~=5.9.1
