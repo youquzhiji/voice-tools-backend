@@ -6,7 +6,11 @@ import numpy as np
 from zstd import ZSTD_compress, ZSTD_uncompress
 
 
+# Number of threads for multithreaded compression
 CPU_COUNT = cpu_count()
+
+# Byte length of int
+INT = 4
 
 
 def bdict_encode(d: dict[str, bytes | str]) -> bytes:
@@ -37,10 +41,10 @@ def bdict_encode(d: dict[str, bytes | str]) -> bytes:
     for k, v in d:
         lk, lv = len(k), len(v)
 
-        b[i: i + 8] = lk.to_bytes(8, 'big')
-        i += 8
-        b[i: i + 8] = lv.to_bytes(8, 'big')
-        i += 8
+        b[i: i + INT] = lk.to_bytes(INT, 'big')
+        i += INT
+        b[i: i + INT] = lv.to_bytes(INT, 'big')
+        i += INT
         b[i: i + lk] = k
         i += lk
         b[i: i + lv] = v
@@ -62,10 +66,10 @@ def bdict_decode(b: bytes) -> dict[str, bytes]:
 
     # Loop through byte array
     while i < len(b):
-        lk = int.from_bytes(b[i: i + 8], 'big')
-        i += 8
-        lv = int.from_bytes(b[i: i + 8], 'big')
-        i += 8
+        lk = int.from_bytes(b[i: i + INT], 'big')
+        i += INT
+        lv = int.from_bytes(b[i: i + INT], 'big')
+        i += INT
         k = b[i: i + lk].decode('utf-8')
         i += lk
         v = b[i: i + lv]
