@@ -156,3 +156,5 @@ token.txt
 temp/
 audio_tmp
 audio_results
+._*
+.DS_Store
