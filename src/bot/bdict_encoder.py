@@ -41,3 +41,36 @@ def bdict_encode(d: dict[str, bytes | str]) -> bytes:
         i += lv
 
     return bytes(b)
+
+
+def bdict_decode(b: bytes) -> dict[str, bytes]:
+    """
+    Decode byte array dictionary
+
+    :param b:
+    :return:
+    """
+    i = 0
+    dic = {}
+
+    # Loop through byte array
+    while i < len(b):
+        lk = int.from_bytes(b[i: i + 8], 'big')
+        i += 8
+        lv = int.from_bytes(b[i: i + 8], 'big')
+        i += 8
+        k = b[i: i + lk].decode('utf-8')
+        i += lk
+        v = b[i: i + lv]
+        i += lv
+
+        dic[k] = v
+
+    return dic
+
+
+if __name__ == '__main__':
+    d = {'meow': 'hi', 'bytes': np.array([1, 2, 3, 4, 5]).tobytes()}
+    print(d)
+    print(bdict_encode(d))
+    print(bdict_decode(bdict_encode(d)))
