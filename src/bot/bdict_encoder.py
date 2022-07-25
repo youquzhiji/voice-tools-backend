@@ -3,7 +3,6 @@ from __future__ import annotations
 from os import cpu_count
 
 import numpy as np
-from zstd import ZSTD_compress, ZSTD_uncompress
 
 
 # Number of threads for multithreaded compression

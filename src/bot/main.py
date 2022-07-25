@@ -15,13 +15,11 @@ from telegram import Update, Message, Bot, ParseMode
 from telegram.ext import Updater, CallbackContext, Dispatcher, CommandHandler, MessageHandler, \
     Filters
 
-from bot.web import save_process_results
-from tasks import compute_audio_raw
-
-sys.path.append(str(Path(__file__).parent))
 sys.path.append(str(Path(__file__).parent.parent))
 
+from tasks import compute_audio_raw
 from bot import utils, web
+from bot.web import save_process_results
 from bot.render import draw_ml, draw_mspect
 
 
