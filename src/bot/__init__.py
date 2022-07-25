@@ -63,8 +63,8 @@ def cmd_start(u: Update, c: CallbackContext):
 
 
 def get_result_url(uuid: str):
-    # return f"https://alpha.voice.hydev.org/view?id={uuid}"
-    return f"http://localhost:3000/view?id={uuid}&host=localhost:48257"
+    return f"https://voice.hydev.org/result/{uuid}"
+    # return f"http://localhost:5173/result/{uuid}"
 
 
 def send_ml(file: Path, segment: list[ResultFrame], uuid: str, msg: Message):
@@ -89,7 +89,8 @@ def send_spect(mel_spectrogram: np.ndarray, freq_array: np.ndarray, sr: int, msg
     """
     mspec = draw_mspect(mel_spectrogram, freq_array, sr)
     buf = io.BytesIO()
-    mspec.save(buf, 'JPEG')
+    mspec.save(buf, 'JPEG', quality=85)
+    # mspec.save('test.jpg', 'JPEG', quality=80)
     buf.seek(0)
 
     send = f'显示基频和共振峰的频谱图\n' \
