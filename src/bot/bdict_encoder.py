@@ -31,7 +31,7 @@ def bdict_encode(d: dict[str, bytes | str]) -> bytes:
         (k.encode('utf8'), v.encode('utf-8') if isinstance(v, str) else v) for k, v in d.items()]
 
     # Count length
-    total_len = sum([len(k) + len(v) + 16 for k, v in d])
+    total_len = sum([len(k) + len(v) + INT * 2 for k, v in d])
 
     # Create byte array
     b = bytearray(total_len)
@@ -82,7 +82,7 @@ def bdict_decode(b: bytes) -> dict[str, bytes]:
 
 
 if __name__ == '__main__':
-    d = {'meow': 'hi', 'bytes': np.array([1, 2, 3, 4, 5] * 10).tobytes()}
+    d = {'meow': 'hi', 'bytes': np.array([1, 2, 3, 4, 5]).tobytes()}
     print(d)
     print(bdict_encode(d))
     print(bdict_decode(bdict_encode(d)))
