@@ -44,17 +44,17 @@ async def process(file: UploadFile, req: Request):
 
 
 @app.get('/results')
-async def get_process_results(uuid: str) -> dict | None:
+async def get_process_results(uuid: str) -> bytes | None:
     """
     Get results from a previously saved UUID.
 
     :param uuid:
-    :return: Results dict or None if not found
+    :return: Results data or None if not found
     """
-    path = (SAVED_RESULTS_PATH / f'{uuid}.json')
+    path = (SAVED_RESULTS_PATH / f'{uuid}.bdct')
     if not path.is_file():
         return None
-    return json.loads(path.read_text('utf-8'))
+    return path.read_bytes()
 
 
 def save_process_results(results: RawComputeResults) -> str:

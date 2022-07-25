@@ -50,7 +50,8 @@ def bdict_encode(d: dict[str, bytes | str]) -> bytes:
         b[i: i + lv] = v
         i += lv
 
-    return ZSTD_compress(bytes(b), 19, CPU_COUNT)
+    return bytes(b)
+    # return ZSTD_compress(bytes(b), 19, CPU_COUNT)
 
 
 def bdict_decode(b: bytes) -> dict[str, bytes]:
@@ -60,7 +61,7 @@ def bdict_decode(b: bytes) -> dict[str, bytes]:
     :param b:
     :return:
     """
-    b = ZSTD_uncompress(b)
+    # b = ZSTD_uncompress(b)
     i = 0
     dic = {}
 

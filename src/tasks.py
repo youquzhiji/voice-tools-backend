@@ -43,8 +43,10 @@ class RawComputeResults(NamedTuple):
                 'spec': b64(self.mel_spectrogram), 'spec_sr': self.sr}
 
     def to_bdict(self) -> bytes:
+        j = {'result': self.result, 'ml': self.ml, 'spec_sr': self.sr,
+             'spec_rows': self.mel_spectrogram.shape[0]}
         bd = {'freq_array': self.freq_array.T.tobytes(), 'spec': self.mel_spectrogram.tobytes(),
-              'json': json.dumps({'result': self.result, 'ml': self.ml, 'spec_sr': self.sr})}
+              'json': json.dumps(j)}
         return bdict_encode(bd)
 
 
