@@ -11,6 +11,7 @@ from fastapi import FastAPI, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from hypy_utils import Timer
 from starlette.requests import Request
+from starlette.responses import FileResponse
 
 from bot import consts
 from bot.utils import PrettyJSONResponse
@@ -44,7 +45,7 @@ async def process(file: UploadFile, req: Request):
 
 
 @app.get('/results')
-async def get_process_results(uuid: str) -> bytes | None:
+async def get_process_results(uuid: str) -> FileResponse | None:
     """
     Get results from a previously saved UUID.
 
@@ -54,7 +55,7 @@ async def get_process_results(uuid: str) -> bytes | None:
     path = (SAVED_RESULTS_PATH / f'{uuid}.bdct')
     if not path.is_file():
         return None
-    return path.read_bytes()
+    return FileResponse(path)
 
 
 def save_process_results(results: RawComputeResults) -> str:
