@@ -1,5 +1,6 @@
 import base64
 import datetime
+import json
 from pathlib import Path
 from typing import NamedTuple
 
@@ -15,6 +16,8 @@ from inaSpeechSegmenter.features import to_wav
 from inaSpeechSegmenter.sidekit_mfcc import read_wav
 from sgs.config import sgs_config
 
+from bot.bdict_encoder import bdict_encode
+
 gpu_devices = tf.config.experimental.list_physical_devices('GPU')
 for device in gpu_devices:
     tf.config.experimental.set_memory_growth(device, True)
@@ -29,10 +32,20 @@ def b64(nd: np.ndarray) -> dict[str, any]:
 
 
 class RawComputeResults(NamedTuple):
+    result: dict
     freq_array: np.ndarray
     ml: list
     mel_spectrogram: np.ndarray
     sr: int
+
+    def to_json_dict(self) -> dict:
+        return {'result': self.result, 'ml': self.ml, 'freq_array': b64(self.freq_array.T),
+                'spec': b64(self.mel_spectrogram), 'spec_sr': self.sr}
+
+    def to_bdict(self) -> bytes:
+        bd = {'freq_array': self.freq_array.T.tobytes(), 'spec': self.mel_spectrogram.tobytes(),
+              'json': json.dumps({'result': self.result, 'ml': self.ml, 'spec_sr': self.sr})}
+        return bdict_encode(bd)
 
 
 def write_file(file: bytes, file_name: str) -> Path:
@@ -47,7 +60,7 @@ def write_file(file: bytes, file_name: str) -> Path:
     return tmp_file
 
 
-def compute_audio_raw(file: Path) -> tuple[dict, RawComputeResults]:
+def compute_audio_raw(file: Path) -> RawComputeResults:
     """
     Compute user request
 
@@ -85,13 +98,10 @@ def compute_audio_raw(file: Path) -> tuple[dict, RawComputeResults]:
 
     # Calculate mel spectrogram
     t = tfio.audio.spectrogram(y, 2048, 2048, 512)
-    mel_spectrogram = tfio.audio.melscale(t, rate=sr, mels=128, fmin=0, fmax=8000)
+    mel_spectrogram = tfio.audio.melscale(t, rate=sr, mels=128, fmin=0, fmax=8000).numpy()
 
-    data = {'result': result, 'ml': ml, 'freq_array': b64(freq_array.T),
-            'spec': b64(mel_spectrogram.numpy()), 'spec_sr': sr}
-
-    return data, RawComputeResults(freq_array, ml, mel_spectrogram, sr)
+    return RawComputeResults(result, freq_array, ml, mel_spectrogram, sr)
 
 
 def compute_audio(file: bytes, file_name: str) -> dict:
-    return compute_audio_raw(write_file(file, file_name))[0]
+    return compute_audio_raw(write_file(file, file_name)).to_json_dict()
