@@ -51,6 +51,9 @@ class AnalyzeComponents:
 
 
 def r(u: Update, msg: str, md=True):
+    """
+    Reply to a message
+    """
     updater.bot.sendMessage(chat_id=u.effective_chat.id, text=msg,
                             parse_mode='Markdown' if md else None)
 
@@ -59,7 +62,15 @@ def cmd_start(u: Update, c: CallbackContext):
     r(u, '欢迎! 点下面的录音按钮就可以开始啦w')
 
 
+def get_result_url(uuid: str):
+    # return f"https://alpha.voice.hydev.org/view?id={uuid}"
+    return f"http://localhost:3000/view?id={uuid}&host=localhost:48257"
+
+
 def send_ml(file: Path, segment: list[ResultFrame], uuid: str, msg: Message):
+    """
+    Draw and send ML prediction to chat
+    """
     assert len(segment), '分析失败, 大概是音量太小或者时长太短吧, 再试试w'
 
     # Draw results
@@ -67,12 +78,15 @@ def send_ml(file: Path, segment: list[ResultFrame], uuid: str, msg: Message):
         f, m, o, pf = get_result_percentages(segment)
         send = f"CNN 模型分析结果: {f*100:.0f}% 🙋‍♀️ | {m*100:.0f}% 🙋‍♂️ | {o*100:.0f}% 🚫\n" \
                f"(结果仅供参考, 如果结果不是你想要的，那就是模型的问题，欢迎反馈)\n" \
-               f"\n<a href='https://alpha.voice.hydev.org/view?id={uuid}'>[查看完整分析结果]</a>\n"
+               f"\n<a href='{get_result_url(uuid)}'>[查看完整分析结果]</a>\n"
         bot.send_photo(msg.chat_id, photo=buf, caption=send,
                        reply_to_message_id=msg.message_id, parse_mode=ParseMode.HTML)
 
 
 def send_spect(mel_spectrogram: np.ndarray, freq_array: np.ndarray, sr: int, msg: Message):
+    """
+    Draw and send spectrogram to chat
+    """
     mspec = draw_mspect(mel_spectrogram, freq_array, sr)
     buf = io.BytesIO()
     mspec.save(buf, 'JPEG')
@@ -84,6 +98,9 @@ def send_spect(mel_spectrogram: np.ndarray, freq_array: np.ndarray, sr: int, msg
 
 
 def process_audio(cmd: str, msg: Message):
+    """
+    Process audio after receiving a command
+    """
     audio = msg.audio or msg.voice
     assert audio
 
@@ -109,6 +126,9 @@ def process_audio(cmd: str, msg: Message):
 
 
 def cmd_reply(u: Update, c: CallbackContext):
+    """
+    Message event listener, called when a message is replied to
+    """
     try:
         reply = u.effective_message.reply_to_message
 
@@ -137,6 +157,9 @@ def cmd_reply(u: Update, c: CallbackContext):
 
 
 def on_audio(u: Update, c: CallbackContext):
+    """
+    Message event listener, called when an audio is received in private chat
+    """
     try:
         process_audio('analyze', u.effective_message)
     except AssertionError as e:
