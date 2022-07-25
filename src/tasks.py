@@ -106,5 +106,5 @@ def compute_audio_raw(file: Path) -> RawComputeResults:
     return RawComputeResults(result, freq_array, ml, mel_spectrogram, sr, sound.duration)
 
 
-def compute_audio(file: bytes, file_name: str) -> dict:
-    return compute_audio_raw(write_file(file, file_name)).to_json_dict()
+def compute_audio(file: bytes, file_name: str) -> bytes:
+    return compute_audio_raw(write_file(file, file_name)).to_bdict()

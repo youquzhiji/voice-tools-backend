@@ -15,7 +15,7 @@ from starlette.responses import FileResponse
 
 from bot import consts
 from bot.utils import PrettyJSONResponse
-from tasks import compute_audio, RawComputeResults
+from tasks import compute_audio, RawComputeResults, write_file, compute_audio_raw
 
 SAVED_RESULTS_PATH = Path('audio_results')
 SAVED_RESULTS_PATH.mkdir(exist_ok=True, parents=True)
@@ -37,11 +37,18 @@ async def status():
 
 
 @app.post('/process')
-async def process(file: UploadFile, req: Request):
+async def process(file: UploadFile, req: Request) -> str:
+    """
+    Process audio and return result UUID.
+    """
     timer = Timer()
     timer.log(f'User request received from {req.client.host}')
 
-    return compute_audio(await file.read(), file.filename)
+    file = write_file(await file.read(), file.filename)
+    results = compute_audio_raw(file)
+    uuid = save_process_results(results)
+
+    return uuid
 
 
 @app.get('/results')
@@ -58,15 +65,17 @@ async def get_process_results(uuid: str) -> FileResponse | None:
     return FileResponse(path)
 
 
-def save_process_results(results: RawComputeResults) -> str:
+def save_process_results(results: RawComputeResults, uuid: str | None = None) -> str:
     """
     Save results and return a UUID for getting results later.
 
     :param results: Results
+    :param uuid: Existing uuid to override
     :return: UUID
     """
     # TODO: Use redis / mysql
-    uuid = str(uuid4())
+    if uuid is None:
+        uuid = str(uuid4())
     (SAVED_RESULTS_PATH / f'{uuid}.json').write_text(json.dumps(results.to_json_dict()), 'utf-8')
     (SAVED_RESULTS_PATH / f'{uuid}.bdct').write_bytes(results.to_bdict())
     return uuid
