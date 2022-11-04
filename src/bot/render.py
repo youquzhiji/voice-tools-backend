@@ -4,8 +4,8 @@ import io
 import sys
 from pathlib import Path
 
+import numba
 import sgs
-from hyfetch.color_util import RGB
 
 import PIL.Image
 import matplotlib.pyplot as plt
@@ -19,10 +19,10 @@ from inaSpeechSegmenter.features import to_wav
 from inaSpeechSegmenter.sidekit_mfcc import read_wav
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
-from numba import njit
+from numba import njit, float64, void, uint8, float32
 from numpy import ndarray
 
-from bot.color_scale import get_raw, create_gradient_hex
+from bot.color_scale import get_raw, create_gradient_hex, RGB
 
 
 def draw_ml(file: str, result: list[ResultFrame]) -> io.BytesIO:
@@ -103,7 +103,7 @@ def hz_to_mel(hz: float | ndarray) -> float:
     return 2595 * np.log10(1 + hz / 700)
 
 
-@njit(cache=True)
+@njit(void(uint8[:, :, :], float32[:], uint8[:]), cache=True)
 def draw_spect_line(img: ndarray, line: ndarray, color: ndarray):
     h, w, _ = img.shape
     x_len = len(line) / w
@@ -136,10 +136,10 @@ def draw_mspect(spec: ndarray, freq_array: ndarray, sr: int):
     img = draw_mspect_image(spec, gradient)
     timer.log('Done drawing')
 
-    draw_spect_line(img, freq_array[:, 0], np.array(RGB.from_hex('#64fbff')))
-    draw_spect_line(img, freq_array[:, 1], np.array(RGB.from_hex('#7bff4f')))
-    draw_spect_line(img, freq_array[:, 2], np.array(RGB.from_hex('#93ffb9')))
-    draw_spect_line(img, freq_array[:, 3], np.array(RGB.from_hex('#4ffff9')))
+    draw_spect_line(img, freq_array[:, 0], RGB.from_hex('#64fbff').to_numpy())
+    draw_spect_line(img, freq_array[:, 1], RGB.from_hex('#7bff4f').to_numpy())
+    draw_spect_line(img, freq_array[:, 2], RGB.from_hex('#93ffb9').to_numpy())
+    draw_spect_line(img, freq_array[:, 3], RGB.from_hex('#4ffff9').to_numpy())
 
     timer.log('Done drawing line')
 
@@ -150,7 +150,7 @@ def draw_mspect(spec: ndarray, freq_array: ndarray, sr: int):
 
 if __name__ == '__main__':
     # Read file
-    y, sr, _ = read_wav(r"Z:\EECS 6414\voice_cnn\VT 150hz baseline example.converted.wav")
+    y, sr, _ = read_wav("/ws/EECS 6414/voice_cnn/VT 150hz baseline example.converted.wav")
     sound = parselmouth.Sound(y, sr)
 
     t = tfio.audio.spectrogram(y, 2048, 2048, 256)

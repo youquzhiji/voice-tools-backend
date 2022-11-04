@@ -1,9 +1,43 @@
 from __future__ import annotations
 
+from typing import NamedTuple
+
 import numpy as np
-from hyfetch.color_util import RGB
 from numba import njit, uint8
 from numpy import ndarray
+
+
+class RGB(NamedTuple):
+    r: int
+    g: int
+    b: int
+
+    @classmethod
+    def from_hex(cls, hex: str) -> "RGB":
+        """
+        Create color from hex code
+        >>> RGB.from_hex('#FFAAB7')
+        RGB(r=255, g=170, b=183)
+        :param hex: Hex color code
+        :return: RGB object
+        """
+        while hex.startswith('#'):
+            hex = hex[1:]
+
+        r = int(hex[0:2], 16)
+        g = int(hex[2:4], 16)
+        b = int(hex[4:6], 16)
+        return cls(r, g, b)
+
+    def to_numpy(self) -> ndarray:
+        """
+        :return: uint8[:]
+        """
+        return np.array(self, dtype='uint8')
+
+    def to_ansi_rgb(self, foreground: bool = True) -> str:
+        c = '38' if foreground else '48'
+        return f'\033[{c};2;{self.r};{self.g};{self.b}m'
 
 
 def create_gradient_hex(colors: list[str], resolution: int = 300) -> ndarray:
