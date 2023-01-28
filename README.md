@@ -1,4 +1,4 @@
-# 6414-backend
+# Voice Tools Backend
  
 Using community-based distributed computing of untrusted nodes to accelerate ML computation, inspired by Folding@Home.
 
